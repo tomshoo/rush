@@ -1,0 +1,8 @@
+[package]
+name = "command_utils"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+commands = { path = "../commands", version="0.0.0" }
+return_structure = { path = "../return_structure", version="0.0.0" }

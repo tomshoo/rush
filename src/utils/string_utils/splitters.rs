@@ -1,20 +1,24 @@
-pub struct Splitters {}
+pub struct Splitters;
+
+pub enum Split<'a> {
+    Split(Vec<String>),
+    IncompleteBrackets,
+    Failed(&'a str),
+}
 
 impl Splitters {
-    pub fn bracket(in_string: &str, br_open: char) -> Option<Vec<String>> {
+    pub fn bracket(in_string: &str, br_open: char) -> Split {
         let open_brs = "({[<";
         let close_brs = ")}]>";
         let closing_bracket = match open_brs.find(br_open) {
             Some(i) => close_brs.as_bytes()[i] as char,
             None => {
-                println!("Not a valid valid bracket, quitting...");
                 '\0'
             }
         };
         if closing_bracket == '\0' {
-            return None;
-        }
-        else {
+            return Split::Failed("Not a valid bracket");
+        } else {
             let mut container = Vec::<String>::new();
             let mut form_vec = Vec::<String>::new();
             let mut check: u8 = 0;
@@ -31,7 +35,6 @@ impl Splitters {
                     nbuff-=1;
                     if nbuff == 0 {check = 0;}
                     if nbuff < 0 {
-                        println!("Extra closing bracket found, quitting...");
                         check = 1;
                         print!("b1");
                         break;
@@ -46,20 +49,18 @@ impl Splitters {
                 }
             }
             if check == 0 {
-                return Some(container);
-            }
-            else if nbuff >= 0 {
-                    println!("Extra opening bracket found, quitting...");
-                    return None;
+                return Split::Split(container);
+            } else if nbuff >= 0 {
+                    return Split::IncompleteBrackets;
             } else {
-                return None;
+                return Split::Failed("Extra closing bracket quitting...");
             }
         }
     }
 
-    pub fn dbreaker(string: &str, delimiter: char) -> Option<Vec<String>> {
+    pub fn dbreaker(string: &str, delimiter: char) -> Split {
         if delimiter.is_alphanumeric() {
-            return None;
+            return Split::Failed("delimiter cannot be alpha numeric");
         }
         let mut form_vec = Vec::<String>::new();
         let mut container = Vec::<String>::new();
@@ -87,12 +88,12 @@ impl Splitters {
             container.push(form_vec.join(""));
             form_vec.clear();
         }
-        return Some(container);
+        return Split::Split(container);
     }
 
-    pub fn quote(string: &str, delimiter: char) -> Option<Vec<String>> {
+    pub fn quote(string: &str, delimiter: char) -> Split {
         if delimiter.is_alphanumeric() {
-            return None;
+            return Split::Failed("delimiter cannot be alpha-numeric");
         }
         let mut form_vec = Vec::<String>::new();
         let mut quote_vec = Vec::<String>::new();
@@ -141,6 +142,6 @@ impl Splitters {
         if !form_vec.is_empty() {
             container.push(form_vec.join(""));
         }
-        return Some(container);
+        return Split::Split(container);
     }
 }
