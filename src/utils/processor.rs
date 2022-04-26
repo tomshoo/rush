@@ -38,7 +38,9 @@ pub fn interactive () -> i32 {
         };
         match Splitters::dbreaker(in_string.deref(), ' ') {
             Split::Split(vector) => {
-                println!("{:?}", vector);
+                let mut arg_vec = vector.clone();
+                arg_vec.remove(0);
+                command_utils::run(vector[0].deref(), arg_vec, &map)
             },
             Split::Failed(e) => {
                 println!("{}", e);
@@ -61,7 +63,7 @@ pub fn interactive () -> i32 {
         // if in_string == "exit" {
         //     break;
         // } else {
-            command_utils::run(in_string.deref(), &map);
+            // command_utils::run(in_string.deref(), &map);
     }
 }
 }

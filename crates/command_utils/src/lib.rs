@@ -5,6 +5,8 @@ use return_structure::ReturnStructure;
 pub enum Commands{
     Clear(commands::clear::ClearScreen),
     Exit(commands::exit::Exit),
+    ChangeDirectory(commands::cd::ChangeDirectory),
+    GetChildren(commands::gc::GetChildren),
     None
 }
 
@@ -30,6 +32,12 @@ impl CreateCommand {
             Commands::Exit(c) => {
                 c.run(command_arguments, &mut self.return_object);
             },
+            Commands::ChangeDirectory(c) => {
+                c.run(command_arguments, &mut self.return_object);
+            },
+            Commands::GetChildren(c) => {
+                c.run(command_arguments, &mut self.return_object);
+            }
             Commands::None => {
                 self.return_object = ReturnStructure {
                     exit_code: 1
@@ -44,14 +52,16 @@ pub fn init() -> HashMap<&'static str, Commands> {
     let mut command_map: HashMap<&str, Commands> = HashMap::new();
     command_map.insert("clear", Commands::Clear(commands::clear::ClearScreen));
     command_map.insert("exit", Commands::Exit(commands::exit::Exit));
+    command_map.insert("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory));
+    command_map.insert("gc", Commands::GetChildren(commands::gc::GetChildren));
     return command_map;
 }
 
-pub fn run(command:&str, map: &HashMap<&str, Commands>) {
+pub fn run(command:&str, command_arguments: Vec<String>, map: &HashMap<&str, Commands>) {
     let command_enum = match map.get(command) {
         Some(object) => object,
         None => &Commands::None
     };
     let mut command_object = CreateCommand::new();
-    command_object.run(command_enum, &[].to_vec());
+    command_object.run(command_enum, &command_arguments);
 }
