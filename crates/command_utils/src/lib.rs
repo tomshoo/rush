@@ -49,11 +49,12 @@ impl CreateCommand {
 }
 
 pub fn init() -> HashMap<&'static str, Commands> {
-    let mut command_map: HashMap<&str, Commands> = HashMap::new();
-    command_map.insert("clear", Commands::Clear(commands::clear::ClearScreen));
-    command_map.insert("exit", Commands::Exit(commands::exit::Exit));
-    command_map.insert("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory));
-    command_map.insert("gc", Commands::GetChildren(commands::gc::GetChildren));
+    let command_map = HashMap::from([
+        ("clear", Commands::Clear(commands::clear::ClearScreen)),
+        ("exit", Commands::Exit(commands::exit::Exit)),
+        ("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory)),
+        ("gc", Commands::GetChildren(commands::gc::GetChildren))
+    ]);
     return command_map;
 }
 
