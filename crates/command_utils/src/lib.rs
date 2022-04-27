@@ -1,6 +1,6 @@
 use commands;
 use std::collections::HashMap;
-pub use return_structure::ReturnStructure;
+pub use return_structure::{ReturnStructure, Output};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Commands{
@@ -29,13 +29,13 @@ impl CreateCommand {
     pub fn new() -> Self {
         Self{ 
             return_object: ReturnStructure {
-                exit_code: 0
+                exit_code: 0,
+                output: Output::StandardOutput(String::new())
             }
         }
     }
 
     pub fn run(&mut self, command: &Commands, command_arguments: &Vec<String>) -> ReturnStructure {
-        println!("{:?}", command);
         match command {
             Commands::Clear(c) => {
                 c.run(command_arguments, &mut self.return_object)
@@ -51,7 +51,8 @@ impl CreateCommand {
             }
             Commands::None => {
                 self.return_object = ReturnStructure {
-                    exit_code: 127
+                    exit_code: 127,
+                    output: Output::StandardOutput("Error: could not find the command specified\n".to_string())
                 };
                 self.return_object.clone()
             }

@@ -1,5 +1,6 @@
 #[path = "string_utils/splitters.rs"] mod splitters;
 use command_utils::{CallCommand, ShellStatus};
+use return_structure::Output;
 use std::ops::Deref;
 use rustyline::{Editor, error::ReadlineError};
 use splitters::{Splitters, Split};
@@ -27,16 +28,19 @@ impl Process {
             };
             match Splitters::dbreaker(in_string.deref(), ' ') {
                 Split::Split(vector) => {
-                    let mut arg_vec = vector.clone();
-                    arg_vec.remove(0);
-                    let command_done = call_command.run(vector[0].deref(), arg_vec).unwrap();
-                    match command_done {
-                        ShellStatus::Maintain(c) => {
-                            _exit_code = c.exit_code;
-                        }
-                        ShellStatus::Terminate(c) => {
-                            _exit_code = c;
-                            break;
+                    if !vector.is_empty() {
+                        let mut arg_vec = vector.clone();
+                        arg_vec.remove(0);
+                        let command_done = call_command.run(vector[0].deref(), arg_vec).unwrap();
+                        match command_done {
+                            ShellStatus::Maintain(c) => {
+                                _exit_code = c.exit_code;
+                                print!("{}", if let Output::StandardOutput(c) = c.output {c} else {String::new()});
+                            }
+                            ShellStatus::Terminate(c) => {
+                                _exit_code = c;
+                                break;
+                            }
                         }
                     }
                 },

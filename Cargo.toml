@@ -9,3 +9,4 @@ edition = "2021"
 rustyline = "9.1.2"
 argparse = "0.2.2"
 command_utils = { path = "./crates/command_utils", version = "0.0.0" }
+return_structure = { path = "./crates/return_structure", version = "0.0.0" }
