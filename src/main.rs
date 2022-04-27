@@ -15,6 +15,7 @@ fn main() {
     }
     if interactive {
         let process_stat = processor::Process::interactive();
+        println!("{}", process_stat);
         std::process::exit(process_stat);
     }
     else {

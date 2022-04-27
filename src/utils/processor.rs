@@ -8,13 +8,14 @@ pub struct Process;
 
 impl Process {
     pub fn interactive () -> i32 {
-        let map = command_utils::init();
+        let mut call_command = command_utils::CallCommand::new();
+        let map = call_command.init();
         let mut reader = Editor::<()>::new();
+        let mut _exit_code = 0;
         loop {
             let in_string = match reader.readline("> ") {
                 Ok(s) => {
                     reader.add_history_entry(&s);
-                    println!("{}", reader.history().len());
                     s
                 },
                 Err(ReadlineError::Eof) => {return 0;},
@@ -24,22 +25,15 @@ impl Process {
                     String::new()
                 }
             };
-            match Splitters::bracket(in_string.deref(), '(') {
-                Split::Split(vector) => {
-                    println!("{:?}", vector);
-                },
-                Split::Failed(e) => {
-                    println!("{}", e);
-                }
-                _ => {
-                    println!("{}", in_string);
-                }
-            };
             match Splitters::dbreaker(in_string.deref(), ' ') {
                 Split::Split(vector) => {
                     let mut arg_vec = vector.clone();
                     arg_vec.remove(0);
-                    command_utils::run(vector[0].deref(), arg_vec, &map)
+                    let command_done = call_command.run(vector[0].deref(), arg_vec, &map).unwrap();
+                    _exit_code = command_done.1.exit_code;
+                    if command_done.0 == "exit" {
+                        break;
+                    }
                 },
                 Split::Failed(e) => {
                     println!("{}", e);
@@ -48,21 +42,7 @@ impl Process {
                     println!("1, {}", in_string);
                 }
             };
-            match Splitters::quote(in_string.deref(), ' ') {
-                Split::Split(vector) => {
-                    println!("{:?}", vector);
-                },
-                Split::Failed(e) => {
-                    println!("{}", e);
-                }
-                _ => {
-                    println!("1, {}", in_string);
-                }
-            };
-            // if in_string == "exit" {
-            //     break;
-            // } else {
-            // command_utils::run(in_string.deref(), &map);
         }
+        return _exit_code;
     }
 }

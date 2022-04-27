@@ -1,11 +1,5 @@
-use return_structure::ReturnStructure;
-
+// This is just a place holder for the exit command,
+// Each command should have a module in its name to maintain regularity,
+// in command modules
 #[derive(Debug, Clone, Copy)]
 pub struct Exit;
-
-impl Exit {
-    pub fn new() -> Self {Self{}}
-    pub fn run<'a>(&self, _arguments: &Vec<String>, return_struct: &'a mut ReturnStructure) -> () {
-        std::process::exit(return_struct.exit_code);
-    }
-}
