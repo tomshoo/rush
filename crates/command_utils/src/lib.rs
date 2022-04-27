@@ -11,12 +11,18 @@ pub enum Commands{
     None
 }
 
+pub enum ShellStatus {
+    Terminate(i32),
+    Maintain(ReturnStructure)
+}
+
 struct CreateCommand {
     return_object: ReturnStructure
 }
 
 pub struct CallCommand {
-    command_creator: Option<CreateCommand>
+    command_creator: Option<CreateCommand>,
+    map: HashMap<&'static str, Commands>
 }
 
 impl CreateCommand {
@@ -55,10 +61,15 @@ impl CreateCommand {
 
 impl CallCommand {
 
-    pub fn new() -> Self {Self {command_creator: None}}
+    pub fn new() -> Self {
+        Self {
+            command_creator: None,
+            map: HashMap::new()
+        }
+    }
 
-    pub fn init(&mut self) -> HashMap<&'static str, Commands> {
-        let command_map = HashMap::from([
+    pub fn init(&mut self) -> () {
+        self.map = HashMap::from([
             ("exit", Commands::Exit),
             ("clear", Commands::Clear(commands::clear::ClearScreen)),
             ("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory)),
@@ -67,21 +78,28 @@ impl CallCommand {
         if let None = self.command_creator {
             self.command_creator = Some(CreateCommand::new());
         }
-        return command_map;
     }
 
-    pub fn run<'a>(&mut self, command:&'a str, command_arguments: Vec<String>, map: &HashMap<&str, Commands>) -> Result<(&'a str, ReturnStructure), &str> {
-        let command_enum = match map.get(command) {
-            Some(object) => object,
-            None => &Commands::None
-        };
-        match &mut self.command_creator {
-            Some(command_object) => {
-                Ok((command, command_object.run(command_enum, &command_arguments)))
-            },
-            None => {
-                Err("Failed to locate the command creator object, make sure you called the init function before using this function")
+    pub fn run<'a>(
+        &mut self, command:&'a str,
+        command_arguments: Vec<String>,
+    ) -> Result<ShellStatus, &str> {
+        if let Some(command_object) = &mut self.command_creator {
+            if command != "exit" {
+                Ok(ShellStatus::Maintain(command_object.run(
+                if let Some(c) = self.map.get(command) {c} else {&Commands::None},
+                &command_arguments
+            )))
             }
+            else {
+                Ok(ShellStatus::Terminate(command_object.run(
+                if let Some(c) = self.map.get(command) {c} else {&Commands::None},
+                &command_arguments
+            ).exit_code))
+            }
+        }
+        else {
+            Err("Failed to locate the command creator object, make sure you called the init function before using this function")
         }
     }
 }
