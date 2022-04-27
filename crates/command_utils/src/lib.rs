@@ -5,7 +5,7 @@ pub use return_structure::ReturnStructure;
 #[derive(Debug, Clone, Copy)]
 pub enum Commands{
     Clear(commands::clear::ClearScreen),
-    Exit(commands::exit::Exit),
+    Exit,
     ChangeDirectory(commands::cd::ChangeDirectory),
     GetChildren(commands::gc::GetChildren),
     None
@@ -34,7 +34,7 @@ impl CreateCommand {
             Commands::Clear(c) => {
                 c.run(command_arguments, &mut self.return_object)
             },
-            Commands::Exit(_) => {
+            Commands::Exit => {
                 self.return_object.clone()
             },
             Commands::ChangeDirectory(c) => {
@@ -59,7 +59,7 @@ impl CallCommand {
 
     pub fn init(&mut self) -> HashMap<&'static str, Commands> {
         let command_map = HashMap::from([
-            ("exit", Commands::Exit(commands::exit::Exit)),
+            ("exit", Commands::Exit),
             ("clear", Commands::Clear(commands::clear::ClearScreen)),
             ("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory)),
             ("gc", Commands::GetChildren(commands::gc::GetChildren))
