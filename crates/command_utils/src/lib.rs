@@ -35,26 +35,26 @@ impl CreateCommand {
         }
     }
 
-    pub fn run(&mut self, command: &Commands, command_arguments: &Vec<String>) -> ReturnStructure {
+    pub fn run(&mut self, command: &Commands, command_arguments: &Vec<String>) -> ShellStatus {
         match command {
             Commands::Clear(c) => {
-                c.run(command_arguments, &mut self.return_object)
+                ShellStatus::Maintain(c.run(command_arguments, &mut self.return_object))
             },
             Commands::Exit => {
-                self.return_object.clone()
+                ShellStatus::Terminate(self.return_object.exit_code)
             },
             Commands::ChangeDirectory(c) => {
-                c.run(command_arguments, &mut self.return_object)
+                ShellStatus::Maintain(c.run(command_arguments, &mut self.return_object))
             },
             Commands::GetChildren(c) => {
-                c.run(command_arguments, &mut self.return_object)
+                ShellStatus::Maintain(c.run(command_arguments, &mut self.return_object))
             }
             Commands::None => {
                 self.return_object = ReturnStructure {
                     exit_code: 127,
                     output: Output::StandardOutput("Error: could not find the command specified\n".to_string())
                 };
-                self.return_object.clone()
+                ShellStatus::Maintain(self.return_object.clone())
             }
         }
     }
@@ -86,18 +86,10 @@ impl CallCommand {
         command_arguments: Vec<String>,
     ) -> Result<ShellStatus, &str> {
         if let Some(command_object) = &mut self.command_creator {
-            if command != "exit" {
-                Ok(ShellStatus::Maintain(command_object.run(
+            Ok(command_object.run(
                 if let Some(c) = self.map.get(command) {c} else {&Commands::None},
                 &command_arguments
-            )))
-            }
-            else {
-                Ok(ShellStatus::Terminate(command_object.run(
-                if let Some(c) = self.map.get(command) {c} else {&Commands::None},
-                &command_arguments
-            ).exit_code))
-            }
+            ))
         }
         else {
             Err("Failed to locate the command creator object, make sure you called the init function before using this function")
