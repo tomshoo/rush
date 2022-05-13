@@ -1,5 +1,5 @@
 [package]
-name = "command_utils"
+name = "call_command"
 version = "0.0.0"
 edition = "2021"
 

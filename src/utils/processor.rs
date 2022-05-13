@@ -1,5 +1,5 @@
 #[path = "string_utils/splitters.rs"] mod splitters;
-use command_utils::{CallCommand, ShellStatus};
+use call_command::{CallCommand, ShellStatus};
 use return_structure::Output;
 use std::ops::Deref;
 use rustyline::{Editor, error::ReadlineError};
