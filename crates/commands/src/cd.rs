@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use return_structure::ReturnStructure;
+use return_structure::{ReturnStructure, Output};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ChangeDirectory;
@@ -26,7 +26,9 @@ impl ChangeDirectory {
                             home = p;
                         }
                         match std::env::set_current_dir(path.replace('~', home.deref())) {
-                            Ok(_) => {},
+                            Ok(_) => {
+                                return_struct.exit_code = 0
+                            },
                             Err(e) => {
                                 eprintln!("{}", e);
                                 return_struct.exit_code = 1
@@ -45,6 +47,7 @@ impl ChangeDirectory {
                 }
             }
             None => {
+                return_struct.exit_code = 0;
                 if cfg!(windows) {
                     let mut path = String::new();
                     if let Ok(c) = std::env::var("USERPROFILE") {
@@ -59,8 +62,12 @@ impl ChangeDirectory {
                     }
                     std::env::set_current_dir(path).unwrap();
                 }
+                else {
+                    return_struct.exit_code = 1
+                }
             }
         };
+        return_struct.output = Output::StandardOutput(String::new());
         return return_struct.clone();
     }
 }

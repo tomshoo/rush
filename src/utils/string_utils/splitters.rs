@@ -1,11 +1,12 @@
 pub struct Splitters;
-
+#[allow(dead_code)]
 pub enum Split<'a> {
     Split(Vec<String>),
     IncompleteBrackets,
     Failed(&'a str),
 }
 
+#[allow(dead_code)]
 impl Splitters {
     pub fn bracket(in_string: &str, br_open: char) -> Split {
         let open_brs = "({[<";
