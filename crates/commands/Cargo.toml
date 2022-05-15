@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 return_structure = { path = "../return_structure", version="0.0.0" }
+arg_parser = { path = "../arg_parser", version = "0.0.0" }
