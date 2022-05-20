@@ -11,48 +11,68 @@ pub enum Commands{
     None
 }
 
-pub enum ShellStatus {
+pub enum ShellStatus<'shell_stat> {
     Terminate(i32),
-    Maintain(ReturnStructure)
+    Maintain(ReturnStructure<'shell_stat>)
 }
 
-struct CreateCommand {
-    return_object: ReturnStructure
+struct CreateCommand<'cmd> {
+    return_object: ReturnStructure<'cmd>
 }
 
-pub struct CallCommand {
-    command_creator: Option<CreateCommand>,
+pub struct CallCommand<'call> {
+    command_creator: Option<CreateCommand<'call>>,
     map: HashMap<&'static str, Commands>
 }
 
-impl CreateCommand {
+impl<'call> CreateCommand<'call> {
     pub fn new() -> Self {
-        Self{ 
-            return_object: ReturnStructure {
-                exit_code: 0,
-                output: Output::StandardOutput(String::new())
-            }
+        Self{
+            return_object: ReturnStructure::from(
+                0,
+                HashMap::new(),
+                Output::StandardOutput(String::new())
+            )
         }
     }
 
-    pub fn run(&mut self, command: &Commands, command_arguments: &Vec<String>) -> ShellStatus {
+    pub fn run(
+        &mut self,
+        command: &Commands,
+        command_arguments: &Vec<String>
+    ) -> ShellStatus {
         match command {
             Commands::Clear(c) => {
-                ShellStatus::Maintain(c.run(command_arguments, &mut self.return_object))
+                ShellStatus::Maintain(c.run(
+                    command_arguments,
+                    &mut self.return_object
+                ))
             },
             Commands::Exit => {
-                ShellStatus::Terminate(self.return_object.exit_code)
+                ShellStatus::Terminate(
+                    self.return_object.exit_code
+                )
             },
             Commands::ChangeDirectory(c) => {
-                ShellStatus::Maintain(c.run(command_arguments, &mut self.return_object))
+                ShellStatus::Maintain(c.run(
+                    command_arguments,
+                    &mut self.return_object
+                ))
             },
             Commands::GetChildren(c) => {
-                ShellStatus::Maintain(c.run(command_arguments, &mut self.return_object))
+                ShellStatus::Maintain(c.run(
+                    command_arguments,
+                    &mut self.return_object
+                ))
             }
             Commands::None => {
                 self.return_object = ReturnStructure {
                     exit_code: 127,
-                    output: Output::StandardOutput("Error: could not find the command specified\n".to_string())
+                    vars: HashMap::new(),
+                    output: Output::StandardOutput(
+                        "Error: could not find the command specified\n"
+                        .to_string()
+                    )
                 };
                 ShellStatus::Maintain(self.return_object.clone())
             }
@@ -60,7 +80,7 @@ impl CreateCommand {
     }
 }
 
-impl CallCommand {
+impl<'cmd> CallCommand<'cmd> {
 
     pub fn new() -> Self {
         Self {
@@ -92,7 +112,7 @@ impl CallCommand {
             ))
         }
         else {
-            Err("Failed to locate the command creator object, make sure you called the init function before using this function")
+            Err("No command creator found, is struct init called?")
         }
     }
 }

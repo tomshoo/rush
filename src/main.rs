@@ -14,7 +14,8 @@ fn main() {
             .expect("Failed to parse arguments");
     }
     if interactive {
-        std::process::exit(processor::Process::interactive());
+        let shell_process_object = processor::Process::new();
+        std::process::exit(shell_process_object.interactive());
     }
     else {
         println!("Working on non interactive sessions");

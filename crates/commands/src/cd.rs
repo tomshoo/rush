@@ -7,7 +7,11 @@ pub struct ChangeDirectory;
 
 impl ChangeDirectory {
     pub fn new() -> Self {Self{}}
-    pub fn run(&self, arguments: &Vec<String>, return_struct: &mut ReturnStructure) -> ReturnStructure {
+    pub fn run<'a>(
+        &self,
+        arguments: &Vec<String>,
+        return_struct: &'a mut ReturnStructure
+    ) -> ReturnStructure<'a> {
         if arguments.len() > 1{
             println!("Expected 1 argument found {}", arguments.len());
             return_struct.exit_code = 1;
@@ -25,7 +29,14 @@ impl ChangeDirectory {
                         } {
                             home = p;
                         }
-                        match std::env::set_current_dir(path.replace('~', home.deref())) {
+                        match std::env::set_current_dir(
+                            path
+                                .replace(
+                                    '~',
+                                    home.deref()
+                                )
+                            )
+                        {
                             Ok(_) => {
                                 return_struct.exit_code = 0
                             },
