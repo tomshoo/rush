@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::rc::Rc;
 
-use return_structure::{
+use shell_props::{
     ReturnStructure,
     Output
 };
@@ -13,10 +13,10 @@ impl ClearScreen {
     pub fn run<'a>(
         &self, _arguments: &Vec<String>,
         return_structure: &'a mut ReturnStructure
-    ) -> ReturnStructure<'a> {
+    ) -> ReturnStructure {
         *return_structure = ReturnStructure::from (
             0,
-            HashMap::new(),
+            Rc::clone(&return_structure.vars),
             Output::StandardOutput(format!(
                 "{} {} {} {}",
                 27 as char,
@@ -26,6 +26,6 @@ impl ClearScreen {
             ))
         );
         return_structure.exit_code = 0;
-        return_structure.clone()
+        return_structure.to_owned()
     }
 }

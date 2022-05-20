@@ -1,6 +1,7 @@
 use commands;
 use std::collections::HashMap;
-pub use return_structure::{ReturnStructure, Output};
+use std::rc::Rc;
+pub use shell_props::{ReturnStructure, Output};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Commands{
@@ -8,36 +9,38 @@ pub enum Commands{
     Exit,
     ChangeDirectory(commands::cd::ChangeDirectory),
     GetChildren(commands::gc::GetChildren),
+    Set(commands::set::Set),
     None
 }
 
-pub enum ShellStatus<'shell_stat> {
+#[derive(Debug)]
+pub enum ShellStatus {
     Terminate(i32),
-    Maintain(ReturnStructure<'shell_stat>)
+    Maintain(ReturnStructure)
 }
 
-struct CreateCommand<'cmd> {
-    return_object: ReturnStructure<'cmd>
+struct CreateCommand {
+    return_object: ReturnStructure
 }
 
-pub struct CallCommand<'call> {
-    command_creator: Option<CreateCommand<'call>>,
+pub struct CallCommand {
+    command_creator: Option<CreateCommand>,
     map: HashMap<&'static str, Commands>
 }
 
-impl<'call> CreateCommand<'call> {
-    pub fn new() -> Self {
+impl CreateCommand {
+    pub fn new(return_struct: ReturnStructure) -> Self {
         Self{
-            return_object: ReturnStructure::from(
-                0,
-                HashMap::new(),
-                Output::StandardOutput(String::new())
-            )
+            return_object: return_struct
         }
     }
 
-    pub fn run(
-        &mut self,
+    pub fn clear_output(&mut self) -> () {
+        self.return_object.output = Output::StandardOutput(String::new());
+    }
+
+    pub fn run<'a>(
+        &'a mut self,
         command: &Commands,
         command_arguments: &Vec<String>
     ) -> ShellStatus {
@@ -65,10 +68,16 @@ impl<'call> CreateCommand<'call> {
                     &mut self.return_object
                 ))
             }
+            Commands::Set(c) => {
+                ShellStatus::Maintain(c.run(
+                    command_arguments,
+                    &mut self.return_object
+                ))
+            }
             Commands::None => {
                 self.return_object = ReturnStructure {
                     exit_code: 127,
-                    vars: HashMap::new(),
+                    vars: Rc::clone(&self.return_object.vars),
                     output: Output::StandardOutput(
                         "Error: could not find the command specified\n"
                         .to_string()
@@ -80,7 +89,7 @@ impl<'call> CreateCommand<'call> {
     }
 }
 
-impl<'cmd> CallCommand<'cmd> {
+impl CallCommand {
 
     pub fn new() -> Self {
         Self {
@@ -89,25 +98,34 @@ impl<'cmd> CallCommand<'cmd> {
         }
     }
 
-    pub fn init(&mut self) -> () {
+    pub fn init(&mut self, return_struct: ReturnStructure) -> () {
         self.map = HashMap::from([
             ("exit", Commands::Exit),
             ("clear", Commands::Clear(commands::clear::ClearScreen)),
             ("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory)),
-            ("gc", Commands::GetChildren(commands::gc::GetChildren))
+            ("gc", Commands::GetChildren(commands::gc::GetChildren)),
+            ("set", Commands::Set(commands::set::Set))
         ]);
         if let None = self.command_creator {
-            self.command_creator = Some(CreateCommand::new());
+            self.command_creator = Some(CreateCommand::new(return_struct));
+        }
+        else {
+            panic!("Command creater initialized more than once");
         }
     }
 
     pub fn run<'a>(
-        &mut self, command:&'a str,
+        &'a mut self, command:&'a str,
         command_arguments: Vec<String>,
-    ) -> Result<ShellStatus, &str> {
+    ) -> Result<ShellStatus, &'a str> {
         if let Some(command_object) = &mut self.command_creator {
+            command_object.clear_output();
             Ok(command_object.run(
-                if let Some(c) = self.map.get(command) {c} else {&Commands::None},
+                if let Some(cmd) = self.map.get(command) {
+                    cmd
+                } else {
+                    &Commands::None
+                },
                 &command_arguments
             ))
         }

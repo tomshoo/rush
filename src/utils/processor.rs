@@ -1,24 +1,35 @@
 #[path = "string_utils/splitters.rs"] mod splitters;
 use std::collections::HashMap;
 use call_command::{CallCommand, ShellStatus};
-use return_structure::Output;
+use shell_props::{ReturnStructure, Output};
 use std::ops::Deref;
+use std::rc::Rc;
+use std::cell::RefCell;
 use rustyline::{Editor, error::ReadlineError};
 use splitters::{Splitters, Split};
 
 #[allow(dead_code)]
-pub struct Process<'shell> {
-    variables: HashMap<&'shell str, &'shell str>
+pub struct Process {
+    // variables: Rc<RefCell<HashMap<&'shell str, &'shell str>>>k
+    variables: Rc<RefCell<HashMap<String, String>>>
 }
 
-impl<'shell> Process<'shell> {
+impl Process {
     pub fn new () -> Self {Self {
-        variables: HashMap::new()
+        variables: Rc::from(RefCell::from(HashMap::from([
+            ("TEST_VAR".to_string(), "TEST_VALUE".to_string()),
+            ("EXIT_CODE".to_string(), "0".to_string())
+        ])))
     }}
 
     pub fn interactive<'x> (&'x self) -> i32 {
         let mut call_command = CallCommand::new();
-        call_command.init();
+        let return_struct: ReturnStructure = ReturnStructure::from(
+            0,
+            Rc::clone(&self.variables),
+            Output::StandardOutput(String::new())
+        );
+        call_command.init(return_struct);
         let mut reader = Editor::<()>::new();
         let mut _exit_code = 0;
         loop {
@@ -46,9 +57,10 @@ impl<'shell> Process<'shell> {
                         match command_done {
                             ShellStatus::Maintain(c) => {
                                 _exit_code = c.exit_code;
+                                // println!("{:?}", c);
                                 print!(
                                     "{}", if let Output::StandardOutput(c) = c.output {c}
-                                    else {String::new()}
+                                    else {String::from("tabs")}
                                 );
                             }
                             ShellStatus::Terminate(c) => {

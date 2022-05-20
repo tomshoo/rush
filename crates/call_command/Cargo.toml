@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 commands = { path = "../commands", version="0.0.0" }
-return_structure = { path = "../return_structure", version="0.0.0" }
+shell-props = { path = "../shell-props", version="0.0.0" }

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use return_structure::{ReturnStructure, Output};
+use shell_props::{ReturnStructure, Output};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ChangeDirectory;
@@ -11,11 +11,11 @@ impl ChangeDirectory {
         &self,
         arguments: &Vec<String>,
         return_struct: &'a mut ReturnStructure
-    ) -> ReturnStructure<'a> {
+    ) -> ReturnStructure {
         if arguments.len() > 1{
             println!("Expected 1 argument found {}", arguments.len());
             return_struct.exit_code = 1;
-            return return_struct.clone();
+            return return_struct.to_owned();
         }
         let _ = match arguments.clone().pop() {
             Some(path) => {
@@ -79,6 +79,6 @@ impl ChangeDirectory {
             }
         };
         return_struct.output = Output::StandardOutput(String::new());
-        return return_struct.clone();
+        return return_struct.to_owned();
     }
 }

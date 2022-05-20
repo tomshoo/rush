@@ -1,9 +1,9 @@
-use std::{ops::Deref, collections::HashMap};
+use std::ops::Deref;
 use arg_parser::{argparser, StoreAction, Type};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use return_structure::{ReturnStructure, Output};
+use shell_props::{ReturnStructure, Output};
 
 #[derive(Debug, Clone, Copy)]
 pub struct GetChildren;
@@ -13,8 +13,8 @@ impl GetChildren {
     pub fn run<'a>(
         &self,
         arguments: &Vec<String>,
-        return_struct: &'a mut ReturnStructure
-    ) -> ReturnStructure<'a> {
+        return_struct: &mut ReturnStructure
+    ) -> ReturnStructure {
         let show_all = Rc::from(RefCell::from(false));
         {
             let mut parser = argparser::ArgumentParser::new();
@@ -29,10 +29,10 @@ impl GetChildren {
                 Err(e) => {
                     *return_struct = ReturnStructure::from (
                         1,
-                        HashMap::new(),
+                        Rc::clone(&return_struct.vars),
                         Output::StandardOutput(format!("{}\n", e))
                     );
-                    return return_struct.clone();
+                    return return_struct.to_owned();
                 }
                 _ => {}
             };
@@ -75,6 +75,6 @@ impl GetChildren {
                 return_struct.exit_code = 1;
             }
         }
-        return_struct.clone()
+        return_struct.to_owned()
     }
 }

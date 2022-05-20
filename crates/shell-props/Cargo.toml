@@ -1,5 +1,5 @@
 [package]
-name = "return_structure"
+name = "shell-props"
 version = "0.0.0"
 edition = "2021"
 
