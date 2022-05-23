@@ -10,6 +10,7 @@ pub enum Commands{
     ChangeDirectory(commands::cd::ChangeDirectory),
     GetChildren(commands::gc::GetChildren),
     Set(commands::set::Set),
+    Get(commands::get::Get),
     None
 }
 
@@ -74,6 +75,12 @@ impl CreateCommand {
                     &mut self.return_object
                 ))
             }
+            Commands::Get(c) => {
+                ShellStatus::Maintain(c.run(
+                    command_arguments,
+                    &mut self.return_object
+                ))
+            }
             Commands::None => {
                 self.return_object = ReturnStructure {
                     exit_code: 127,
@@ -104,7 +111,8 @@ impl CallCommand {
             ("clear", Commands::Clear(commands::clear::ClearScreen)),
             ("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory)),
             ("gc", Commands::GetChildren(commands::gc::GetChildren)),
-            ("set", Commands::Set(commands::set::Set))
+            ("set", Commands::Set(commands::set::Set)),
+            ("get", Commands::Get(commands::get::Get))
         ]);
         if let None = self.command_creator {
             self.command_creator = Some(CreateCommand::new(return_struct));

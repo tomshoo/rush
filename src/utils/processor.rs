@@ -1,7 +1,7 @@
 #[path = "string_utils/splitters.rs"] mod splitters;
 use std::collections::HashMap;
 use call_command::{CallCommand, ShellStatus};
-use shell_props::{ReturnStructure, Output};
+use shell_props::{ReturnStructure, Output, OptionProperties};
 use std::ops::Deref;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -11,14 +11,14 @@ use splitters::{Splitters, Split};
 #[allow(dead_code)]
 pub struct Process {
     // variables: Rc<RefCell<HashMap<&'shell str, &'shell str>>>k
-    variables: Rc<RefCell<HashMap<String, String>>>
+    variables: Rc<RefCell<HashMap<String, OptionProperties>>>
 }
 
 impl Process {
     pub fn new () -> Self {Self {
         variables: Rc::from(RefCell::from(HashMap::from([
-            ("TEST_VAR".to_string(), "TEST_VALUE".to_string()),
-            ("EXIT_CODE".to_string(), "0".to_string())
+            ("TEST_VAR".to_string(), OptionProperties::from(false, "TEST_VALUE".to_string())),
+            ("EXIT_CODE".to_string(), OptionProperties::from(false, "0".to_string()))
         ])))
     }}
 

@@ -140,9 +140,7 @@ pub mod argparser {
                                     .reference
                                     {
                                     if let Some(arg) = opt {
-                                        println!("1");
                                         if let Some(value) = arguments.get(idx+1) {
-                                            println!("{}", value);
                                             *arg.borrow_mut() = value.to_string();
                                             idx+=1;
                                         }
