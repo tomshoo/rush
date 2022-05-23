@@ -10,7 +10,16 @@ pub struct GetChildren;
 
 impl GetChildren {
     pub fn new() -> Self {Self{}}
-    pub fn run<'a>(
+}
+
+impl shell_props::GetRunnable for GetChildren {
+    fn create(&self) -> Box<dyn shell_props::Runnable> {
+        return Box::new(Self::new())
+    }
+}
+
+impl shell_props::Runnable for GetChildren {
+    fn run<'a>(
         &self,
         arguments: &Vec<String>,
         return_struct: &mut ReturnStructure

@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use shell_props::{
     ReturnStructure,
-    Output
+    Output, Runnable, GetRunnable
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -10,7 +10,16 @@ pub struct ClearScreen;
 
 impl ClearScreen {
     pub fn new() -> Self { Self{ } }
-    pub fn run<'a>(
+}
+
+impl GetRunnable for ClearScreen {
+    fn create(&self) -> Box<dyn Runnable> {
+        return Box::new(Self::new());
+    }
+}
+
+impl Runnable for ClearScreen {
+    fn run<'a>(
         &self, _arguments: &Vec<String>,
         return_structure: &'a mut ReturnStructure
     ) -> ReturnStructure {

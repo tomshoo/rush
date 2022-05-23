@@ -1,13 +1,22 @@
 use std::ops::Deref;
 
-use shell_props::{ReturnStructure, Output};
+use shell_props::{ReturnStructure, Output, Runnable, GetRunnable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ChangeDirectory;
 
 impl ChangeDirectory {
     pub fn new() -> Self {Self{}}
-    pub fn run<'a>(
+}
+
+impl GetRunnable for ChangeDirectory {
+    fn create(&self) -> Box<dyn Runnable> {
+        return Box::new(Self::new());
+    }
+}
+
+impl Runnable for ChangeDirectory {
+    fn run<'a>(
         &self,
         arguments: &Vec<String>,
         return_struct: &'a mut ReturnStructure

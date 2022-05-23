@@ -1,15 +1,29 @@
 use arg_parser::argparser::ArgumentParser;
 use arg_parser::Type;
-use shell_props::{ReturnStructure, Output};
 use std::rc::Rc;
 use std::cell::RefCell;
+use shell_props::{
+    ReturnStructure,
+    Output,
+    Runnable,
+    GetRunnable
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Get;
 
 impl Get {
     pub fn new () -> Self { Self { } }
-    pub fn run(
+}
+
+impl GetRunnable for Get {
+    fn create(&self) -> Box<dyn Runnable> {
+        return Box::from(Self::new());
+    }
+}
+
+impl Runnable for Get {
+    fn run(
         &self,
         arguments: &Vec<String>,
         return_struct: &mut ReturnStructure

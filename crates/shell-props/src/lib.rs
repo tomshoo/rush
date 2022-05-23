@@ -8,6 +8,15 @@ pub enum Output {
     TabularOutput(HashMap<String, &'static str>)
 }
 
+
+pub trait GetRunnable {
+    fn create(&self) -> Box<dyn Runnable>;
+}
+
+pub trait Runnable {
+    fn run (&self, arguments: &Vec<String>, return_stuct: &mut ReturnStructure) -> ReturnStructure;
+}
+
 #[derive(Debug)]
 pub struct OptionProperties {
     pub editable: bool,

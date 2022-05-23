@@ -1,7 +1,7 @@
 use shell_props::{
     ReturnStructure,
     Output,
-    OptionProperties
+    OptionProperties, Runnable, GetRunnable
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -9,7 +9,16 @@ pub struct Set;
 
 impl Set {
     pub fn new () -> Self {Self {  }}
-    pub fn run<'a> (
+}
+
+impl GetRunnable for Set {
+    fn create(&self) -> Box<dyn Runnable> {
+        return Box::from(Self::new());
+    }
+}
+
+impl Runnable for Set {
+    fn run<'a> (
         &'a self,
         arguments: &'a Vec<String>,
         return_struct: &'a mut ReturnStructure

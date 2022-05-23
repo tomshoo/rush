@@ -1,16 +1,13 @@
-use commands;
+// use commands;
+use shell_props::{Runnable, GetRunnable};
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::boxed::Box;
 pub use shell_props::{ReturnStructure, Output};
 
-#[derive(Debug, Clone, Copy)]
+// #[derive(Debug)]
 pub enum Commands{
-    Clear(commands::clear::ClearScreen),
+    Runnable(Box<dyn Runnable>),
     Exit,
-    ChangeDirectory(commands::cd::ChangeDirectory),
-    GetChildren(commands::gc::GetChildren),
-    Set(commands::set::Set),
-    Get(commands::get::Get),
     None
 }
 
@@ -46,51 +43,21 @@ impl CreateCommand {
         command_arguments: &Vec<String>
     ) -> ShellStatus {
         match command {
-            Commands::Clear(c) => {
-                ShellStatus::Maintain(c.run(
+            Commands::Runnable(cmd) => {
+                ShellStatus::Maintain(cmd.run(
                     command_arguments,
                     &mut self.return_object
                 ))
             },
             Commands::Exit => {
-                ShellStatus::Terminate(
-                    self.return_object.exit_code
-                )
+                ShellStatus::Terminate(self.return_object.exit_code)
             },
-            Commands::ChangeDirectory(c) => {
-                ShellStatus::Maintain(c.run(
-                    command_arguments,
-                    &mut self.return_object
-                ))
-            },
-            Commands::GetChildren(c) => {
-                ShellStatus::Maintain(c.run(
-                    command_arguments,
-                    &mut self.return_object
-                ))
-            }
-            Commands::Set(c) => {
-                ShellStatus::Maintain(c.run(
-                    command_arguments,
-                    &mut self.return_object
-                ))
-            }
-            Commands::Get(c) => {
-                ShellStatus::Maintain(c.run(
-                    command_arguments,
-                    &mut self.return_object
-                ))
-            }
             Commands::None => {
-                self.return_object = ReturnStructure {
-                    exit_code: 127,
-                    vars: Rc::clone(&self.return_object.vars),
-                    output: Output::StandardOutput(
-                        "Error: could not find the command specified\n"
-                        .to_string()
-                    )
-                };
-                ShellStatus::Maintain(self.return_object.clone())
+                self.return_object.exit_code = 1;
+                self.return_object.output = Output::StandardOutput(
+                    "command not found".to_string()
+                );
+                ShellStatus::Maintain(self.return_object.to_owned())
             }
         }
     }
@@ -107,12 +74,12 @@ impl CallCommand {
 
     pub fn init(&mut self, return_struct: ReturnStructure) -> () {
         self.map = HashMap::from([
-            ("exit", Commands::Exit),
-            ("clear", Commands::Clear(commands::clear::ClearScreen)),
-            ("cd", Commands::ChangeDirectory(commands::cd::ChangeDirectory)),
-            ("gc", Commands::GetChildren(commands::gc::GetChildren)),
-            ("set", Commands::Set(commands::set::Set)),
-            ("get", Commands::Get(commands::get::Get))
+            ("exit",  Commands::Exit),
+            ("clear", Commands::Runnable(commands::clear::ClearScreen.create())),
+            ("cd",    Commands::Runnable(commands::cd::ChangeDirectory.create())),
+            ("gc",    Commands::Runnable(commands::gc::GetChildren.create())),
+            ("set",   Commands::Runnable(commands::set::Set.create())),
+            ("get",   Commands::Runnable(commands::get::Get.create()))
         ]);
         if let None = self.command_creator {
             self.command_creator = Some(CreateCommand::new(return_struct));
@@ -126,6 +93,7 @@ impl CallCommand {
         &'a mut self, command:&'a str,
         command_arguments: Vec<String>,
     ) -> Result<ShellStatus, &'a str> {
+
         if let Some(command_object) = &mut self.command_creator {
             command_object.clear_output();
             Ok(command_object.run(
@@ -137,6 +105,7 @@ impl CallCommand {
                 &command_arguments
             ))
         }
+
         else {
             Err("No command creator found, is struct init called?")
         }
