@@ -75,11 +75,11 @@ impl CallCommand {
     pub fn init(&mut self, return_struct: ReturnStructure) -> () {
         self.map = HashMap::from([
             ("exit",  Commands::Exit),
-            ("clear", Commands::Runnable(commands::clear::ClearScreen.create())),
-            ("cd",    Commands::Runnable(commands::cd::ChangeDirectory.create())),
-            ("gc",    Commands::Runnable(commands::gc::GetChildren.create())),
-            ("set",   Commands::Runnable(commands::set::Set.create())),
-            ("get",   Commands::Runnable(commands::get::Get.create()))
+            ("clear", Commands::Runnable(commands::clear::ClearScreen::create())),
+            ("cd",    Commands::Runnable(commands::cd::ChangeDirectory::create())),
+            ("gc",    Commands::Runnable(commands::gc::GetChildren::create())),
+            ("set",   Commands::Runnable(commands::set::Set::create())),
+            ("get",   Commands::Runnable(commands::get::Get::create()))
         ]);
         if let None = self.command_creator {
             self.command_creator = Some(CreateCommand::new(return_struct));

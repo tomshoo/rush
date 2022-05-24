@@ -6,20 +6,14 @@ use shell_props::{
     ReturnStructure,
     Output,
     Runnable,
-    GetRunnable
 };
+use trait_macros::GetRunnable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, GetRunnable)]
 pub struct Get;
 
 impl Get {
     pub fn new () -> Self { Self { } }
-}
-
-impl GetRunnable for Get {
-    fn create(&self) -> Box<dyn Runnable> {
-        return Box::from(Self::new());
-    }
 }
 
 impl Runnable for Get {

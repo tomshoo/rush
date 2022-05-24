@@ -1,20 +1,15 @@
 use shell_props::{
     ReturnStructure,
     Output,
-    OptionProperties, Runnable, GetRunnable
+    OptionProperties, Runnable
 };
+use trait_macros::GetRunnable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, GetRunnable)]
 pub struct Set;
 
 impl Set {
     pub fn new () -> Self {Self {  }}
-}
-
-impl GetRunnable for Set {
-    fn create(&self) -> Box<dyn Runnable> {
-        return Box::from(Self::new());
-    }
 }
 
 impl Runnable for Set {

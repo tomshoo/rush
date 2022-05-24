@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 shell-props = { path = "../shell-props", version="0.0.0" }
 arg_parser = { path = "../arg_parser", version = "0.0.0" }
+trait-macros = { path = "../trait-macros", version = "0.1.0" }

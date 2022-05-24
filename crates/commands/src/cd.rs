@@ -1,18 +1,13 @@
 use std::ops::Deref;
 
-use shell_props::{ReturnStructure, Output, Runnable, GetRunnable};
+use shell_props::{ReturnStructure, Output, Runnable};
+use trait_macros::GetRunnable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, GetRunnable)]
 pub struct ChangeDirectory;
 
 impl ChangeDirectory {
     pub fn new() -> Self {Self{}}
-}
-
-impl GetRunnable for ChangeDirectory {
-    fn create(&self) -> Box<dyn Runnable> {
-        return Box::new(Self::new());
-    }
 }
 
 impl Runnable for ChangeDirectory {

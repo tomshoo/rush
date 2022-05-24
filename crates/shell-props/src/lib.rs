@@ -1,20 +1,12 @@
 use std::collections::HashMap;
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::rc::Rc;
 
 #[derive(Clone, Debug)]
 pub enum Output {
     StandardOutput(String),
     TabularOutput(HashMap<String, &'static str>)
-}
-
-
-pub trait GetRunnable {
-    fn create(&self) -> Box<dyn Runnable>;
-}
-
-pub trait Runnable {
-    fn run (&self, arguments: &Vec<String>, return_stuct: &mut ReturnStructure) -> ReturnStructure;
 }
 
 #[derive(Debug)]
@@ -61,4 +53,12 @@ impl ReturnStructure{
         vars: variable_map,
         output: cmd_output
     }}
+}
+
+pub trait GetRunnable {
+    fn create() -> Box<dyn Runnable>;
+}
+
+pub trait Runnable: Debug {
+    fn run (&self, arguments: &Vec<String>, return_stuct: &mut ReturnStructure) -> ReturnStructure;
 }

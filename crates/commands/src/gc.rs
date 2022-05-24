@@ -4,18 +4,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use shell_props::{ReturnStructure, Output};
+use trait_macros::GetRunnable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, GetRunnable)]
 pub struct GetChildren;
 
 impl GetChildren {
     pub fn new() -> Self {Self{}}
-}
-
-impl shell_props::GetRunnable for GetChildren {
-    fn create(&self) -> Box<dyn shell_props::Runnable> {
-        return Box::new(Self::new())
-    }
 }
 
 impl shell_props::Runnable for GetChildren {

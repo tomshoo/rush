@@ -1,21 +1,16 @@
 use std::rc::Rc;
+use trait_macros::GetRunnable;
 
 use shell_props::{
     ReturnStructure,
-    Output, Runnable, GetRunnable
+    Output, Runnable
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, GetRunnable)]
 pub struct ClearScreen;
 
 impl ClearScreen {
     pub fn new() -> Self { Self{ } }
-}
-
-impl GetRunnable for ClearScreen {
-    fn create(&self) -> Box<dyn Runnable> {
-        return Box::new(Self::new());
-    }
 }
 
 impl Runnable for ClearScreen {
