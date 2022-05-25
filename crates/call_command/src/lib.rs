@@ -1,11 +1,10 @@
-// use commands;
 use shell_props::{Runnable, GetRunnable};
 use std::collections::HashMap;
 use std::boxed::Box;
 pub use shell_props::{ReturnStructure, Output};
 
-// #[derive(Debug)]
-pub enum Commands{
+#[derive(Debug)]
+enum Commands{
     Runnable(Box<dyn Runnable>),
     Exit,
     None
