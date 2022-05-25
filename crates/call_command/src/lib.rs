@@ -39,6 +39,7 @@ impl CreateCommand {
 
     pub fn run<'a>(
         &'a mut self,
+        command_name :&'a str,
         command: &Commands,
         command_arguments: &Vec<String>
     ) -> ShellStatus {
@@ -54,9 +55,9 @@ impl CreateCommand {
             },
             Commands::None => {
                 self.return_object.exit_code = 1;
-                self.return_object.output = Output::StandardOutput(
-                    "command not found".to_string()
-                );
+                self.return_object.output = Output::StandardOutput(format!(
+                    "rush: '{}' command not found\n", command_name
+                ));
                 ShellStatus::Maintain(self.return_object.to_owned())
             }
         }
@@ -97,6 +98,7 @@ impl CallCommand {
         if let Some(command_object) = &mut self.command_creator {
             command_object.clear_output();
             Ok(command_object.run(
+                command,
                 if let Some(cmd) = self.map.get(command) {
                     cmd
                 } else {
@@ -107,7 +109,7 @@ impl CallCommand {
         }
 
         else {
-            Err("No command creator found, is struct init called?")
+            Err("No command creator found, is init method called?")
         }
     }
 }
