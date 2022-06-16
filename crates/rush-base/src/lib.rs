@@ -7,20 +7,33 @@ pub mod engine {
             print!("prompt> ");
             std::io::stdout().flush().unwrap();
             let bytes = match std::io::stdin().read_line(&mut command_stream) {
-                Ok(bytes) => bytes - 2,
+                Ok(bytes) => {
+                    let reducer = if cfg!(unix) { 1 } else { 2 };
+                    if bytes >= reducer {
+                        bytes - reducer
+                    } else {
+                        return 1;
+                    }
+                }
                 Err(err) => panic!("Failure while reading, {}", err),
             };
             if bytes == 0 {
                 continue;
             }
             command_stream = command_stream.trim().to_string();
-            if let Ok(token_stream) = lexer::lexer_charwise(&command_stream) {
-                if token_stream[0].value == "exit" {
-                    break;
-                } else {
-                    for token in &token_stream {
-                        println!("{}", token);
+            match lexer::lexer_charwise(&command_stream) {
+                Ok(token_stream) => {
+                    if token_stream[0].value == "exit" {
+                        break;
+                    } else {
+                        for token in &token_stream {
+                            print!("{:?} ", token.token_type);
+                        }
+                        println!();
                     }
+                }
+                Err(err) => {
+                    println!("{err}")
                 }
             }
         }
