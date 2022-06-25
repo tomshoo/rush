@@ -2,85 +2,40 @@
 use super::token::DataType as Type;
 use super::token::Token as TokenItem;
 use super::token::TokenType::*;
+use super::TOKEN_MAP;
 
 // Imports
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 
-lazy_static! {
-    static ref TOKEN_MAP: HashMap<&'static str, &'static str> = HashMap::from([
-        ("if", "CHECK_CONDITION"),
-        ("else", "CHECK_CONDITION_INVERSE"),
-        ("for", "ITERATE_RANGED"),
-        ("while", "ITERATE_CONDITIONAL"),
-        ("switch", "CONDITIONAL_PATTERN"),
-        ("case", "PATTERN_MATCH"),
-        ("let", "VARIABLE_ASSIGNMENT"),
-        ("dyn", "DYNAMIC_ASSIGNMENT"),
-        ("mut", "MUTABLE_ASSIGNMENT"),
-        ("true", "BOOLEAN"),
-        ("false", "BOOLEAN"),
-        ("in", "IN_RANGE"),
-        ("&&", "CONJUNCTION"),
-        ("||", "DISJUNCTION"),
-        ("==", "CHECK_EQUALS"),
-        ("+=", "INCREMENT_ASSIGNMENT"),
-        ("-=", "DECREMENT_ASSIGNMENT"),
-        ("#!", "SHEBANG"),
-        ("=", "ASSIGN"),
-        ("$", "EXPAND")
-    ]);
-}
-
 fn string_type(string: &str) -> TokenItem {
-    if let Ok(_) = string.parse::<isize>() {
-        TokenItem {
-            value: string.to_string(),
-            token_type: DataType(Type::Number),
-            follow: false,
-        }
-    } else if let Ok(_) = string.parse::<f64>() {
-        TokenItem {
-            value: string.to_string(),
-            token_type: DataType(Type::Float),
-            follow: false,
-        }
-    } else if let Some(property) = TOKEN_MAP.get(string) {
-        if property == &"BOOLEAN" {
-            TokenItem {
-                value: string.to_string(),
-                token_type: DataType(Type::Boolean),
-                follow: false,
-            }
+    TokenItem {
+        value: string.to_string(),
+        follow: false,
+        r#type: if let Ok(_) = string.parse::<isize>() {
+            DataType(Type::Number)
+        } else if let Ok(_) = string.parse::<f64>() {
+            DataType(Type::Float)
+        } else if let Some(property) = TOKEN_MAP.get(string) {
+            *property
         } else {
-            TokenItem {
-                value: string.to_string(),
-                token_type: Keyword(property.to_string()),
-                follow: false,
-            }
-        }
-    } else {
-        TokenItem {
-            value: string.to_string(),
-            token_type: Token,
-            follow: false,
-        }
+            Token
+        },
     }
 }
 
 fn token_type(string: &str, follow: bool) -> TokenItem {
     TokenItem {
         value: string.to_string(),
-        token_type: Operator(if let Some(property) = TOKEN_MAP.get(string) {
-            property.to_string()
+        r#type: if let Some(property) = TOKEN_MAP.get(string) {
+            *property
         } else {
-            String::from("SPECIAL")
-        }),
-        follow: follow,
+            Operator("SPECIAL")
+        },
+        follow,
     }
 }
 
-pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, &'a str> {
+pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, String> {
     let brace_types = HashMap::<char, char>::from([('(', ')'), ('{', '}'), ('[', ']')]);
     let mut evaluated_stream = String::new();
     let mut evaluated_sub_stream = String::new();
@@ -115,7 +70,6 @@ pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, &'a str> {
                 if brace {
                     if close == &brace_close {
                         brace_nest += 1;
-                    } else {
                     }
                 } else {
                     brace = true;
@@ -137,11 +91,11 @@ pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, &'a str> {
                 evaluated_sub_stream.push(token);
             }
         } else {
-            if token.is_ascii_alphanumeric() || token == '.' || token == '_' {
+            if token.is_ascii_alphanumeric() || token == '_' {
                 if !evaluated_subtoken_stream.is_empty() {
                     token_container.push(token_type(&evaluated_subtoken_stream, true));
+                    evaluated_subtoken_stream.clear();
                 }
-                evaluated_subtoken_stream.clear();
                 evaluated_stream.push(token);
             } else if token != ' '
                 && token != '\t'
@@ -175,20 +129,22 @@ pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, &'a str> {
             if braced {
                 token_container.push(TokenItem {
                     value: evaluated_sub_stream.clone(),
-                    token_type: Evaluatable(String::from(if brace_close == '}' {
-                        "CODE_BLOCK"
-                    } else if brace_close == ']' {
-                        "COLLECTION"
+                    r#type: if brace_close == ']' {
+                        DataType(Type::Collection)
                     } else {
-                        "EXPRESSION"
-                    })),
+                        Evaluatable(if brace_close == ')' {
+                            "EXPRESSION"
+                        } else {
+                            "CODE_BLOCK"
+                        })
+                    },
                     follow: false,
                 });
                 braced = false;
             } else {
                 token_container.push(TokenItem {
                     value: evaluated_sub_stream.clone(),
-                    token_type: DataType(Type::String),
+                    r#type: DataType(Type::String),
                     follow: false,
                 });
             }
@@ -215,9 +171,10 @@ pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, &'a str> {
         evaluated_subtoken_stream.clear();
     }
 
-    if !evaluated_sub_stream.is_empty() {
-        print!("{} ", evaluated_sub_stream);
-        return Err("Err: Invalid token_stream");
+    if !evaluated_sub_stream.is_empty() || brace || single_quote || double_quote {
+        return Err(format!(
+            "Err: Invalid token_stream at {evaluated_sub_stream}"
+        ));
     }
     return Ok(token_container);
 }

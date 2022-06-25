@@ -1,5 +1,5 @@
-pub mod engine {
-    use rush_utils::lexer;
+pub mod base {
+    use rush_utils::lexer::lexer_charwise;
     use std::io::Write;
     pub fn main() -> i32 {
         loop {
@@ -12,7 +12,7 @@ pub mod engine {
                     if bytes >= reducer {
                         bytes - reducer
                     } else {
-                        return 1;
+                        return 0;
                     }
                 }
                 Err(err) => panic!("Failure while reading, {}", err),
@@ -21,19 +21,18 @@ pub mod engine {
                 continue;
             }
             command_stream = command_stream.trim().to_string();
-            match lexer::lexer_charwise(&command_stream) {
-                Ok(token_stream) => {
-                    if token_stream[0].value == "exit" {
+            match lexer_charwise(&command_stream) {
+                Ok(analysis) => {
+                    if analysis.get(0).is_some() && analysis.get(0).unwrap().value == "exit" {
                         break;
                     } else {
-                        for token in &token_stream {
-                            print!("{:?} ", token.token_type);
+                        for token in analysis {
+                            println!("{token}");
                         }
-                        println!();
                     }
                 }
-                Err(err) => {
-                    println!("{err}")
+                Err(why) => {
+                    panic!("{why}")
                 }
             }
         }
