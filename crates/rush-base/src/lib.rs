@@ -1,5 +1,5 @@
 pub mod base {
-    use rush_utils::lexer::lexer_charwise;
+    use rush_parser::analyzer::analyze;
     use std::io::Write;
     pub fn main() -> i32 {
         loop {
@@ -21,7 +21,7 @@ pub mod base {
                 continue;
             }
             command_stream = command_stream.trim().to_string();
-            match lexer_charwise(&command_stream) {
+            match analyze(&command_stream) {
                 Ok(analysis) => {
                     if analysis.get(0).is_some() && analysis.get(0).unwrap().value == "exit" {
                         break;

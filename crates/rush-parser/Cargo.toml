@@ -1,5 +1,5 @@
 [package]
-name = "rush-base"
+name = "rush-parser"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,6 @@ edition = "2021"
 
 [dependencies]
 rush-utils = { path = "../rush-utils", version = "0.1.0" }
-rush-parser = { path = "../rush-parser", version = "0.1.0" }
+
+derive_builder = "0.11.2"
+lazy_static = "1.4.0"
