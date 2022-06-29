@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use rush_utils::token::Token;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -7,8 +6,8 @@ use std::rc::Rc;
 #[macro_use]
 extern crate derive_builder;
 
-#[derive(Debug)]
-enum Relation {
+#[derive(Debug, PartialEq, Eq, Copy)]
+pub enum Relation {
     SingleChoice,
     Optional,
     Reset,
@@ -24,23 +23,20 @@ lazy_static! {
     ]);
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Builder)]
+#[derive(Debug, Builder, PartialEq, Eq)]
 #[builder(pattern = "owned")]
 #[builder(name = "NodeBuilder")]
-struct TreeNode {
+pub struct TreeNode {
     value: String,
     relation: Relation,
 
-    #[builder(setter(custom))]
     #[builder(default = "HashMap::new()")]
-    joint_nodes: HashMap<String, Option<Rc<RefCell<TreeNode>>>>,
+    joint_nodes: HashMap<String, Rc<RefCell<TreeNode>>>,
 }
 
-#[allow(dead_code)]
 impl TreeNode {
     pub fn insert(&mut self, id: String, node: Rc<RefCell<TreeNode>>) {
-        self.joint_nodes.insert(id, Some(node));
+        self.joint_nodes.insert(id, node);
     }
     pub fn relation(&mut self, relation: Relation) {
         self.relation = relation;
@@ -65,20 +61,7 @@ fn get_node_from_value(value: String, relation: Relation) -> Result<Rc<RefCell<T
     )));
 }
 
-#[allow(dead_code)]
-impl NodeBuilder {
-    fn joint_nodes(self, nodes: Vec<(String, TreeNode)>) -> Self {
-        let mut map = HashMap::new();
-        for (id, node) in nodes {
-            map.insert(id.clone(), Some(Rc::from(RefCell::from(node))));
-        }
-        let mut new = self;
-        new.joint_nodes = Some(map);
-        new
-    }
-}
-
-fn print_tree(root_node: &TreeNode, ident_level: u8) {
+fn print_tree(root_node: &TreeNode, ident_level: u8, visited: &mut Vec<TreeNode>) {
     let mut ident_string = String::new();
     for _ in 0..ident_level {
         ident_string.push(' ');
@@ -88,9 +71,28 @@ fn print_tree(root_node: &TreeNode, ident_level: u8) {
         "{}{} {:?}",
         ident_string, root_node.value, root_node.relation
     );
+    for _ in 0..ident_level / 2 {
+        ident_string.push(' ');
+    }
     for (_, node) in &root_node.joint_nodes {
-        if let Some(val) = node {
-            print_tree(&*val.borrow(), ident_level);
+        if visited
+            .iter()
+            .find(|fnode| *fnode == &*node.borrow())
+            .is_none()
+        {
+            visited.push(TreeNode {
+                value: node.borrow().value.clone(),
+                joint_nodes: node.borrow().joint_nodes.clone(),
+                relation: node.borrow().relation,
+            });
+            print_tree(&*node.borrow(), ident_level, visited);
+        } else {
+            println!(
+                "{}{} {:?}",
+                ident_string,
+                node.borrow().value,
+                node.borrow().relation
+            );
         }
     }
 }
@@ -124,13 +126,13 @@ fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String>
         let mut optional = false;
         let mut oneselect = false;
         let mut reset = false;
-        let mut dump_buffer = String::new();
+        let mut dump_stack = String::new();
         let mut operation_stack: Vec<String> = Vec::new();
         let mut bcount = 0;
         for ch in joint_stream.chars() {
             if ch == '(' {
                 if bcount > 0 {
-                    dump_buffer.push(ch);
+                    dump_stack.push(ch);
                 }
                 bcount += 1;
                 continue;
@@ -140,9 +142,9 @@ fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String>
                     bcount -= 1
                 }
                 if bcount > 0 {
-                    dump_buffer.push(ch);
+                    dump_stack.push(ch);
                 } else {
-                    dump_buffer.push_str("+r");
+                    dump_stack.push_str("+r");
                 }
                 continue;
             }
@@ -151,33 +153,20 @@ fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String>
                     Relation::Optional => optional = true,
                     Relation::Reset => reset = true,
                     Relation::SingleChoice => {
-                        if dump_buffer.is_empty() {
+                        if dump_stack.is_empty() {
                             return Err("No first operand found for operator ^".into());
                         }
-                        operation_stack.push(dump_buffer.clone());
-                        dump_buffer.clear();
+                        operation_stack.push(dump_stack.clone());
+                        dump_stack.clear();
                         oneselect = true;
                     }
                     _ => {}
                 }
             } else if ch == ' ' || ch == '\t' {
-                if !dump_buffer.is_empty() {
-                    // if dump_buffer.ends_with("+r") {
-                    //     dump_buffer
-                    //         .replace_range((dump_buffer.len() - 2)..(dump_buffer.len() - 1), "");
-                    //     let node = generate_relation_tree(&dump_buffer)?;
-                    //     if oneselect {
-                    //         node.borrow_mut().relation = Relation::SingleChoice;
-                    //     }
-                    // }
+                if !dump_stack.is_empty() {
                     if oneselect {
-                        operation_stack.push(dump_buffer.clone());
+                        operation_stack.push(dump_stack.clone());
                         for operand in &operation_stack {
-                            // let node = NodeBuilder::default()
-                            //     .value(operand.clone())
-                            //     .relation(Relation::SingleChoice)
-                            //     .build()
-                            //     .unwrap();
                             let node =
                                 get_node_from_value(operand.clone(), Relation::SingleChoice)?;
                             current_node
@@ -188,50 +177,33 @@ fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String>
                     } else if reset {
                         current_node
                             .borrow_mut()
-                            .insert(dump_buffer.clone(), Rc::clone(&tree_root));
+                            .insert(dump_stack.clone(), Rc::clone(&tree_root));
                         reset = false;
                     } else if optional {
-                        // current_node.borrow_mut().insert(
-                        //     dump_buffer.clone(),
-                        //     Rc::from(RefCell::from(
-                        //         NodeBuilder::default()
-                        //             .value(dump_buffer.clone())
-                        //             .relation(Relation::Optional)
-                        //             .build()
-                        //             .unwrap(),
-                        //     )),
-                        // );
                         current_node.borrow_mut().insert(
-                            dump_buffer.clone(),
-                            get_node_from_value(dump_buffer.clone(), Relation::Optional)?,
+                            dump_stack.clone(),
+                            get_node_from_value(dump_stack.clone(), Relation::Optional)?,
                         );
                         optional = false;
                     } else {
-                        // let node = Rc::from(RefCell::from(
-                        //     NodeBuilder::default()
-                        //         .value(dump_buffer.clone())
-                        //         .relation(Relation::Path)
-                        //         .build()
-                        //         .unwrap(),
-                        // ));
-                        let node = get_node_from_value(dump_buffer.clone(), Relation::Path)?;
+                        let node = get_node_from_value(dump_stack.clone(), Relation::Path)?;
                         current_node
                             .borrow_mut()
-                            .insert(dump_buffer.clone(), Rc::clone(&node));
+                            .insert(dump_stack.clone(), Rc::clone(&node));
                         current_node = node;
                     }
-                    dump_buffer.clear();
+                    dump_stack.clear();
                 }
             } else {
-                dump_buffer.push(ch);
+                dump_stack.push(ch);
             }
         }
-        if !dump_buffer.is_empty() {
+        if !dump_stack.is_empty() {
             current_node.borrow_mut().insert(
-                dump_buffer.clone(),
+                dump_stack.clone(),
                 Rc::from(RefCell::from(
                     NodeBuilder::default()
-                        .value(dump_buffer.clone())
+                        .value(dump_stack.clone())
                         .relation(if optional {
                             Relation::Optional
                         } else {
@@ -248,14 +220,87 @@ fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String>
 }
 
 pub mod analyzer {
-    use super::Token;
-    use rush_utils::lexer;
+    use crate::{generate_relation_tree, print_tree, TreeNode};
 
-    pub fn analyze(stream: &str) -> Result<Vec<Token>, String> {
-        let tree_root = &*super::generate_relation_tree(
-            " let !dyn !mut Token !(:: !(nice) DataType) = ($ Token)^Data^Expression ",
-        )?;
-        super::print_tree(&*tree_root.borrow(), 0);
-        lexer::lexer_charwise(&stream)
+    use std::{cell::RefCell, collections::HashMap, rc::Rc};
+
+    pub struct SyntaxValidationTree {
+        entry_points: HashMap<&'static str, Rc<RefCell<TreeNode>>>,
+        pub current: Option<Rc<RefCell<TreeNode>>>,
+        pub parent: Option<Rc<RefCell<TreeNode>>>,
+    }
+
+    impl SyntaxValidationTree {
+        pub fn from(syntax_streams: Vec<(&'static str, &'static str)>) -> Self {
+            let mut syntax_tree = Self {
+                entry_points: HashMap::new(),
+                current: None,
+                parent: None,
+            };
+            for (entry, stream) in syntax_streams {
+                syntax_tree
+                    .entry_points
+                    .insert(entry, generate_relation_tree(stream).unwrap());
+            }
+            syntax_tree
+        }
+
+        pub fn show_entry(&self, entry: &str) -> Result<(), String> {
+            if let Some(tree) = self.entry_points.get(entry) {
+                println!("Showing for entry: {}", entry);
+                print_tree(&*tree.borrow(), 0, &mut vec![]);
+            } else {
+                return Err(format!("Entry {} does not exist", entry));
+            }
+            Ok(())
+        }
+
+        pub fn set_current(&mut self, entry: &str) -> Result<(), String> {
+            if self.current.is_none() {
+                if let Some(node) = self.entry_points.get(entry) {
+                    self.current = Some(Rc::clone(node));
+                    Ok(())
+                } else {
+                    Err(format!("Entry: {} does not exist", entry))
+                }
+            } else {
+                let a_node;
+                {
+                    let current_node = self.current.as_ref().unwrap();
+                    match current_node.borrow().joint_nodes.get(entry) {
+                        Some(node) => {
+                            a_node = Some(Rc::clone(node));
+                        }
+                        None => {
+                            return Err(format!("Entry: {} does not exist", entry));
+                        }
+                    }
+                }
+                self.current = a_node;
+                Ok(())
+            }
+        }
+
+        pub fn set_parent(&mut self) {
+            self.parent = self.current.clone();
+        }
+
+        pub fn reset_parent(&mut self) {
+            self.parent = None;
+        }
+
+        pub fn entry_exists(&self, entry: &str) -> bool {
+            if *&self.current.is_some() {
+                self.current
+                    .as_ref()
+                    .unwrap()
+                    .borrow()
+                    .joint_nodes
+                    .get(entry)
+                    .is_some()
+            } else {
+                self.entry_points.get(entry).is_some()
+            }
+        }
     }
 }
