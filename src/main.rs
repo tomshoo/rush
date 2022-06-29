@@ -1,5 +1,6 @@
 use rush_base::base;
+use std::process;
 
 fn main() {
-    std::process::exit(base::main());
+    process::exit(base::main());
 }

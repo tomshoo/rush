@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 lazy_static = "1.4.0"
+rush-parser = { path = "../rush-parser", version="0.1.0" }

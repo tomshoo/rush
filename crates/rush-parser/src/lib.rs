@@ -6,7 +6,7 @@ use std::rc::Rc;
 #[macro_use]
 extern crate derive_builder;
 
-#[derive(Debug, PartialEq, Eq, Copy)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Relation {
     SingleChoice,
     Optional,
@@ -266,8 +266,13 @@ pub mod analyzer {
             } else {
                 let a_node;
                 {
-                    let current_node = self.current.as_ref().unwrap();
-                    match current_node.borrow().joint_nodes.get(entry) {
+                    match self
+                        .current
+                        .as_ref()
+                        .unwrap()
+                        .borrow()
+                        .joint_nodes
+                        .get(entry) {
                         Some(node) => {
                             a_node = Some(Rc::clone(node));
                         }

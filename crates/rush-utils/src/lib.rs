@@ -29,6 +29,10 @@ lazy_static! {
         ("while", TokenType::Keyword("ITERATE_CONDITIONAL")),
         ("switch", TokenType::Keyword("CONDITIONAL_PATTERN")),
         ("return", TokenType::Keyword("TERMINATE_FUNCTION")),
+        ("Number", TokenType::Keyword("DATA_TYPE_NUM")),
+        ("String", TokenType::Keyword("DATA_TYPE_STRING")),
+        ("Float", TokenType::Keyword("DATA_TYPE_FLOAT")),
+        ("Boolean", TokenType::Keyword("DATA_TYPE_BOOLEAN")),
     ]);
 }
 
@@ -61,28 +65,28 @@ pub mod token {
     #[derive(Debug, Clone, Eq)]
     pub struct Token {
         pub value: String,
-        pub r#type: TokenType,
+        pub type_: TokenType,
         pub follow: bool,
     }
 
     impl Display for Token {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "Token(value={}, type={:?})", &self.value, &self.r#type)
+            write!(f, "Token(value={}, type={:?})", &self.value, &self.type_)
         }
     }
 
     impl PartialEq for Token {
         fn eq(&self, other: &Token) -> bool {
-            if let TokenType::Token = other.r#type {
+            if let TokenType::Token = other.type_ {
                 return true;
             }
-            &self.value == &other.value && &self.r#type == &other.r#type
+            &self.value == &other.value && &self.type_ == &other.type_
         }
     }
 
     impl Hash for Token {
         fn hash<H: Hasher>(&self, state: &mut H) {
-            self.r#type.hash(state);
+            self.type_.hash(state);
         }
     }
 }

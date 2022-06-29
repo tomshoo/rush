@@ -11,7 +11,7 @@ fn string_type(string: &str) -> TokenItem {
     TokenItem {
         value: string.to_string(),
         follow: false,
-        r#type: if let Ok(_) = string.parse::<isize>() {
+        type_: if let Ok(_) = string.parse::<isize>() {
             DataType(Type::Number)
         } else if let Ok(_) = string.parse::<f64>() {
             DataType(Type::Float)
@@ -26,7 +26,7 @@ fn string_type(string: &str) -> TokenItem {
 fn token_type(string: &str, follow: bool) -> TokenItem {
     TokenItem {
         value: string.to_string(),
-        r#type: if let Some(property) = TOKEN_MAP.get(string) {
+        type_: if let Some(property) = TOKEN_MAP.get(string) {
             *property
         } else {
             Operator("SPECIAL")
@@ -35,7 +35,11 @@ fn token_type(string: &str, follow: bool) -> TokenItem {
     }
 }
 
-pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, String> {
+#[allow(unused_variables, unused_mut)]
+pub fn lexer_charwise<'a>(
+    syntax_tree: &rush_parser::analyzer::SyntaxValidationTree,
+    stream: &'a str,
+) -> Result<Vec<TokenItem>, String> {
     let brace_types = HashMap::<char, char>::from([('(', ')'), ('{', '}'), ('[', ']')]);
     let mut evaluated_stream = String::new();
     let mut evaluated_sub_stream = String::new();
@@ -129,7 +133,7 @@ pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, String> {
             if braced {
                 token_container.push(TokenItem {
                     value: evaluated_sub_stream.clone(),
-                    r#type: if brace_close == ']' {
+                    type_: if brace_close == ']' {
                         DataType(Type::Collection)
                     } else {
                         Evaluatable(if brace_close == ')' {
@@ -144,7 +148,7 @@ pub fn lexer_charwise<'a>(stream: &'a str) -> Result<Vec<TokenItem>, String> {
             } else {
                 token_container.push(TokenItem {
                     value: evaluated_sub_stream.clone(),
-                    r#type: DataType(Type::String),
+                    type_: DataType(Type::String),
                     follow: false,
                 });
             }
