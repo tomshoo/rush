@@ -14,6 +14,9 @@ pub enum Relation {
     Path,
 }
 
+pub trait IntoString: Into<String> + std::fmt::Display + Clone {}
+impl<T: Into<String> + std::fmt::Display + Clone> IntoString for T {}
+
 lazy_static! {
     static ref OPERATOR_MAP: HashMap<char, Relation> = HashMap::from([
         // Map contains the operator and the relation it represents
@@ -35,16 +38,16 @@ pub struct TreeNode {
 }
 
 impl TreeNode {
-    pub fn insert(&mut self, id: String, node: Rc<RefCell<TreeNode>>) {
-        self.joint_nodes.insert(id, node);
+    pub fn insert<S: IntoString>(&mut self, id: S, node: Rc<RefCell<TreeNode>>) {
+        self.joint_nodes.insert(id.into(), node);
     }
     pub fn relation(&mut self, relation: Relation) {
         self.relation = relation;
     }
 }
 
-fn get_node_from_value(value: String, relation: Relation) -> Result<Rc<RefCell<TreeNode>>, String> {
-    let mut value = value.clone();
+fn get_node_from_value<'a, S: IntoString>(value: S, relation: Relation) -> Result<Rc<RefCell<TreeNode>>, String> {
+    let mut value = value.into();
     if value.ends_with("+r") {
         value.pop();
         value.pop();
@@ -98,7 +101,9 @@ fn print_tree(root_node: &TreeNode, ident_level: u8, visited: &mut Vec<TreeNode>
 }
 
 #[allow(unused_variables, unused_mut, unused_assignments)]
-fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String> {
+fn generate_relation_tree<S: IntoString>(stream: S) -> Result<Rc<RefCell<TreeNode>>, String> 
+{
+    let stream = stream.into();
     if stream.is_empty() {
         return Err("Empty string cannot be parsed".to_owned());
     }
@@ -220,7 +225,7 @@ fn generate_relation_tree(stream: &str) -> Result<Rc<RefCell<TreeNode>>, String>
 }
 
 pub mod analyzer {
-    use crate::{generate_relation_tree, print_tree, TreeNode};
+    use crate::{generate_relation_tree, print_tree, TreeNode, IntoString};
 
     use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
@@ -245,8 +250,9 @@ pub mod analyzer {
             syntax_tree
         }
 
-        pub fn show_entry(&self, entry: &str) -> Result<(), String> {
-            if let Some(tree) = self.entry_points.get(entry) {
+        pub fn show_entry<'a, S: IntoString>(&self, entry: S) -> Result<(), String>
+        {
+            if let Some(tree) = self.entry_points.get(entry.clone().into().as_str()) {
                 println!("Showing for entry: {}", entry);
                 print_tree(&*tree.borrow(), 0, &mut vec![]);
             } else {
@@ -255,9 +261,10 @@ pub mod analyzer {
             Ok(())
         }
 
-        pub fn set_current(&mut self, entry: &str) -> Result<(), String> {
+        pub fn set_current<S: IntoString>(&mut self, entry: S) -> Result<(), String>
+        {
             if self.current.is_none() {
-                if let Some(node) = self.entry_points.get(entry) {
+                if let Some(node) = self.entry_points.get(entry.clone().into().as_str()) {
                     self.current = Some(Rc::clone(node));
                     Ok(())
                 } else {
@@ -272,7 +279,7 @@ pub mod analyzer {
                         .unwrap()
                         .borrow()
                         .joint_nodes
-                        .get(entry) {
+                        .get(entry.clone().into().as_str()) {
                         Some(node) => {
                             a_node = Some(Rc::clone(node));
                         }
@@ -294,18 +301,26 @@ pub mod analyzer {
             self.parent = None;
         }
 
-        pub fn entry_exists(&self, entry: &str) -> bool {
+        pub fn entry_exists<S: IntoString>(&self, entry: S) -> bool {
             if *&self.current.is_some() {
                 self.current
                     .as_ref()
                     .unwrap()
                     .borrow()
                     .joint_nodes
-                    .get(entry)
+                    .get(entry.into().as_str())
                     .is_some()
             } else {
-                self.entry_points.get(entry).is_some()
+                self.entry_points.get(entry.into().as_str()).is_some()
             }
         }
+        pub fn entries(&self) -> Vec<String> {
+            let mut entrylist = Vec::new();
+            for (entry,_) in &self.entry_points {
+                entrylist.push(entry.to_string());
+            }
+            entrylist
+        }
     }
+
 }

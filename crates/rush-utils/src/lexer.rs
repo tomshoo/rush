@@ -3,13 +3,15 @@ use super::token::DataType as Type;
 use super::token::Token as TokenItem;
 use super::token::TokenType::*;
 use super::TOKEN_MAP;
+use super::token::TokenItemType::*;
+use rush_parser::analyzer::SyntaxValidationTree;
 
 // Imports
 use std::collections::HashMap;
 
 fn string_type(string: &str) -> TokenItem {
     TokenItem {
-        value: string.to_string(),
+        value: Single(string.to_string()),
         follow: false,
         type_: if let Ok(_) = string.parse::<isize>() {
             DataType(Type::Number)
@@ -25,7 +27,7 @@ fn string_type(string: &str) -> TokenItem {
 
 fn token_type(string: &str, follow: bool) -> TokenItem {
     TokenItem {
-        value: string.to_string(),
+        value: Single(string.to_string()),
         type_: if let Some(property) = TOKEN_MAP.get(string) {
             *property
         } else {
@@ -35,11 +37,44 @@ fn token_type(string: &str, follow: bool) -> TokenItem {
     }
 }
 
-#[allow(unused_variables, unused_mut)]
+#[derive(Debug, Clone, Copy)]
+struct Tracker {
+    row: u16,
+    col: u16
+}
+
+impl Tracker {
+    pub(crate) fn advance_col(&mut self) {
+        self.col+=1;
+    }
+
+    pub(crate) fn advance_row(&mut self) {
+        self.row+=1;
+    }
+}
+
 pub fn lexer_charwise<'a>(
-    syntax_tree: &rush_parser::analyzer::SyntaxValidationTree,
-    stream: &'a str,
+    syntax_tree: &SyntaxValidationTree,
+    stream: &'a str
 ) -> Result<Vec<TokenItem>, String> {
+    let mut tracker = Tracker {row: 1, col: 0};
+    let mut stack_counter = 0;
+    let result = lexer(syntax_tree, stream, &mut tracker, &mut stack_counter);
+    match result {
+        Ok(_) => Ok(result.unwrap()),
+        Err(e) => {
+            Err(format!("Expected {} at {:?}", &e.0, &e.1))
+        }
+    }
+}
+
+fn lexer<'a>(
+    syntax_tree: &SyntaxValidationTree,
+    stream: &'a str,
+    tracker: &mut Tracker,
+    stack_counter: &mut u8
+) -> Result<Vec<TokenItem>, (char,Tracker)> {
+    *stack_counter+=1;
     let brace_types = HashMap::<char, char>::from([('(', ')'), ('{', '}'), ('[', ']')]);
     let mut evaluated_stream = String::new();
     let mut evaluated_sub_stream = String::new();
@@ -51,16 +86,28 @@ pub fn lexer_charwise<'a>(
     let mut single_quote = false;
     let mut double_quote = false;
     let mut braced = false;
+    let mut comment = false;
     for (index, token) in stream.chars().enumerate() {
+        if token == '\n' {
+            if comment {comment = false;}
+            tracker.advance_row();
+            tracker.col = 0;
+            continue;
+        }
+        else {
+            tracker.advance_col();
+        }
         // Ignore all comments,
         // comments start with a '##'
         if token == '#' {
             if let Some(ch) = stream.as_bytes().get(index + 1) {
                 if ch == &('#' as u8) {
-                    break;
+                    comment = true;
+                    continue;
                 }
             }
         }
+        if comment {continue;}
         let previous_state = single_quote || double_quote || brace;
 
         if token == '\'' && !(double_quote || brace) {
@@ -131,23 +178,32 @@ pub fn lexer_charwise<'a>(
 
         if !(evaluated_sub_stream.is_empty() || (brace || single_quote || double_quote)) {
             if braced {
-                token_container.push(TokenItem {
-                    value: evaluated_sub_stream.clone(),
-                    type_: if brace_close == ']' {
-                        DataType(Type::Collection)
-                    } else {
-                        Evaluatable(if brace_close == ')' {
-                            "EXPRESSION"
-                        } else {
-                            "CODE_BLOCK"
-                        })
+                let mut recursion_tracker = Tracker{row: tracker.row, col: 0};
+                match lexer(syntax_tree, &evaluated_sub_stream, &mut recursion_tracker, stack_counter) {
+                    Ok(result) => {
+                        token_container.push(TokenItem {
+                            value: Multiple(result),
+                            type_: if brace_close == ']' {
+                                DataType(Type::Collection)
+                            } else {
+                                Evaluatable(if brace_close == ')' {
+                                    "EXPRESSION"
+                                } else {
+                                    "CODE_BLOCK"
+                                })
+                            },
+                            follow: false,
+                        });
                     },
-                    follow: false,
-                });
+                    Err(e) => {
+                        return Err((e.0, *tracker));
+                    }
+                };
+                tracker.col-=if tracker.col > recursion_tracker.col {recursion_tracker.col} else {0};
                 braced = false;
             } else {
                 token_container.push(TokenItem {
-                    value: evaluated_sub_stream.clone(),
+                    value: Single(evaluated_sub_stream.clone()),
                     type_: DataType(Type::String),
                     follow: false,
                 });
@@ -176,9 +232,14 @@ pub fn lexer_charwise<'a>(
     }
 
     if !evaluated_sub_stream.is_empty() || brace || single_quote || double_quote {
-        return Err(format!(
-            "Err: Invalid token_stream at {evaluated_sub_stream}"
-        ));
+        return Err((if brace {
+                brace_close
+            } else if single_quote {
+                '\''
+            } else {
+                '\"'
+            },
+        *tracker));
     }
     return Ok(token_container);
 }

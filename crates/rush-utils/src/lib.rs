@@ -15,6 +15,7 @@ lazy_static! {
         ("==", TokenType::Operator("CHECK_EQUALS")),
         ("||", TokenType::Operator("DISJUNCTION")),
         ("&&", TokenType::Operator("CONJUNCTION")),
+        ("?#", TokenType::Operator("ALTERNATE_SYMBOL_NAME")),
         ("in", TokenType::Keyword("IN_RANGE")),
         ("if", TokenType::Keyword("CHECK_CONDITION")),
         ("for", TokenType::Keyword("ITERATE_RANGED")),
@@ -61,17 +62,44 @@ pub mod token {
         Token,
     }
 
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    pub enum TokenItemType {
+        Single(String),
+        Multiple(Vec<Token>)
+    }
+
+    impl TokenItemType {
+        pub fn get_string(&self) -> Result<String, &str> {
+            match &self {
+                TokenItemType::Single(some) => {Ok(some.to_string())}
+                _ => {Err("Variant is not of type single")}
+            }
+        }
+    }
+
     // Token Type to hold each token signature
     #[derive(Debug, Clone, Eq)]
     pub struct Token {
-        pub value: String,
+        pub value: TokenItemType,
         pub type_: TokenType,
         pub follow: bool,
     }
 
     impl Display for Token {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "Token(value={}, type={:?})", &self.value, &self.type_)
+            match &self.value {
+                TokenItemType::Single(string) => {
+                    write!(f, "Token(value={}, type={:?})", string, &self.type_)
+                }
+                TokenItemType::Multiple(vec) => {
+                    let mut string = String::new();
+                    for token in vec {
+                        string.push_str(&format!("[{}] ", token));
+                    };
+                    write!(f, "Token(values=[ {}], type={:?})", string, &self.type_)
+                }
+            }
+            //write!(f, "Token(value={}, type={:?})", &self.value, &self.type_)
         }
     }
 
