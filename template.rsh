@@ -1,3 +1,4 @@
+## Comments start with "##"
 ## This is a template file for future references while constructing the syntax and functionalities of rush
 ## Contents of this file are solely for guidance purposes at the time of writing
 ## This file demonstrates some of the basic functions of rush which will later be implemented
@@ -123,12 +124,13 @@ defkeyw even? => {
         }
         else if ($$numtoken == 0) {
             return false >> STDOUT ## Return and write to stdout
+            ## there can be only one return sequence that returns a value
             exit 0
         }
         else {
             print "Not an even number" ## Wriiten to stdout but not stored in output
             return false ## Not written to stdout but stored in output
-            ## their can be only one return sequence in a block
+            ## there can be only one return sequence in a block
             exit 1
         }
     }
