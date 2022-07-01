@@ -139,6 +139,7 @@ defkeyw even? => {
 let var = (even? 5) ## var is false
 let var = (even? 2) ## var is true
 let var = (even? 0) ## var is false
+let var = (even? "not a number")? ## var is not set and invalid type error is returned
 let var::Number = (even? 5)? ## var is 1
 let var::Number = (even? 2)? ## var is 0
 let var::Number = (even? 0)? ## var is 0
