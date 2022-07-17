@@ -1,10 +1,10 @@
 // Token properties
-use super::token::DataType as Type;
-use super::token::Token as TokenItem;
-use super::token::TokenType::*;
-use super::TOKEN_MAP;
-use super::token::TokenItemType::*;
-use rush_parser::analyzer::SyntaxValidationTree;
+use crate::token::DataType as Type;
+use crate::token::Token as TokenItem;
+use crate::token::TokenType::*;
+use crate::TOKEN_MAP;
+use crate::token::TokenItemType::*;
+use super::syntree::analyzer::SyntaxValidationTree;
 
 // Imports
 use std::collections::HashMap;

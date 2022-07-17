@@ -1,6 +1,8 @@
 pub mod base {
-    use rush_parser::analyzer::SyntaxValidationTree;
-    use rush_utils::lexer::lexer_charwise;
+    use rush_parser::parsers::{
+        syntree::analyzer::SyntaxValidationTree,
+        lexer::lexer_charwise
+    };
     use std::io::Write;
 
     pub struct Read {
@@ -53,13 +55,12 @@ pub mod base {
             
                 match lexer_charwise(&self.validation_tree, &command_stream.trim()) {
                     Ok(analysis) => {
-                        if let Some(init) = analysis.get(0) {
-                            if init.value.get_string().is_ok() && init.value.get_string().unwrap() == "exit" {
-                                    break;
-                            } else {
-                                for token in analysis {
-                                    println!("{token}");
-                                }
+                        if analysis.get(0).map_or(false, |token| token.value.get_string() == Ok("exit".to_string())) {
+                            break;
+                        }
+                        else {
+                            for tok in &analysis {
+                                println!("{}", tok);
                             }
                         }
                     }
