@@ -1,15 +1,12 @@
 pub mod base {
-    use rush_parser::parsers::{
-        syntree::analyzer::SyntaxValidationTree,
-        lexer::lexer_charwise
-    };
+    use rush_parser::parsers::{lexer::lexer_charwise, syntree::syntax_tree::SyntaxValidationTree};
     use std::io::Write;
 
     pub struct Read {
-        validation_tree: SyntaxValidationTree
+        validation_tree: SyntaxValidationTree,
     }
 
-    impl Read{
+    impl Read {
         pub fn new() -> Self {
             Self { validation_tree:  SyntaxValidationTree::from(vec![
                 ("let",    "let !dyn !mut Token !(?# Token) !(:: DataType) = ($ Token)^Expression^Data"),
@@ -31,12 +28,11 @@ pub mod base {
         }
 
         pub fn read_line(&self) -> i32 {
-        
             loop {
                 let mut command_stream = String::new();
                 print!("prompt> ");
                 std::io::stdout().flush().unwrap();
-        
+
                 let bytes = match std::io::stdin().read_line(&mut command_stream) {
                     Ok(bytes) => {
                         let reducer = if cfg!(unix) { 1 } else { 2 };
@@ -48,17 +44,18 @@ pub mod base {
                     }
                     Err(err) => panic!("Failure while reading, {}", err),
                 };
-            
+
                 if bytes == 0 {
                     continue;
                 }
-            
+
                 match lexer_charwise(&self.validation_tree, &command_stream.trim()) {
                     Ok(analysis) => {
-                        if analysis.get(0).map_or(false, |token| token.value.get_string() == Ok("exit".to_string())) {
+                        if analysis.get(0).map_or(false, |token| {
+                            token.value.get_string() == Ok("exit".to_string())
+                        }) {
                             break;
-                        }
-                        else {
+                        } else {
                             for tok in &analysis {
                                 println!("{}", tok);
                             }
@@ -80,7 +77,7 @@ pub mod base {
                         for tok in &vec {
                             println!("{}", tok);
                         }
-                    },
+                    }
                     Err(why) => {
                         eprintln!("{} in file {}", why, filepath);
                         return 1;
