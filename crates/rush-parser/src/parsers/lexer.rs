@@ -1,18 +1,20 @@
+// Syntax tree node
+use super::syntree::TreeNode;
+
 // Token properties
+use super::syntree::syntax_tree::SyntaxValidationTree;
 use crate::token::DataType as Type;
 use crate::token::Token as TokenItem;
+use crate::token::TokenItemType::*;
 use crate::token::TokenType::*;
 use crate::TOKEN_MAP;
-use crate::token::TokenItemType::*;
-use super::syntree::analyzer::SyntaxValidationTree;
 
-// Imports
-use std::collections::HashMap;
+type TokenStream = Vec<TokenItem>;
 
-fn string_type(string: &str) -> TokenItem {
+fn string_type(string: &str, follow: bool) -> TokenItem {
     TokenItem {
         value: Single(string.to_string()),
-        follow: false,
+        follow,
         type_: if let Ok(_) = string.parse::<isize>() {
             DataType(Type::Number)
         } else if let Ok(_) = string.parse::<f64>() {
@@ -39,207 +41,177 @@ fn token_type(string: &str, follow: bool) -> TokenItem {
 
 #[derive(Debug, Clone, Copy)]
 struct Tracker {
-    row: u16,
-    col: u16
+    row: usize,
+    col: usize,
 }
 
 impl Tracker {
     pub(crate) fn advance_col(&mut self) {
-        self.col+=1;
+        self.col += 1;
     }
 
     pub(crate) fn advance_row(&mut self) {
-        self.row+=1;
+        self.row += 1;
     }
 }
 
 pub fn lexer_charwise<'a>(
     syntax_tree: &SyntaxValidationTree,
-    stream: &'a str
-) -> Result<Vec<TokenItem>, String> {
-    let mut tracker = Tracker {row: 1, col: 0};
-    let mut stack_counter = 0;
-    let result = lexer(syntax_tree, stream, &mut tracker, &mut stack_counter);
+    stream: &'a str,
+) -> Result<TokenStream, String> {
+    let mut tracker = Tracker { row: 1, col: 0 };
+    let result = lexer(syntax_tree, stream, &mut tracker, 0, '\0');
     match result {
-        Ok(_) => Ok(result.unwrap()),
-        Err(e) => {
-            Err(format!("Expected {} at {:?}", &e.0, &e.1))
+        Ok(o) => {
+            println!("{:?}", tracker);
+            Ok(o.0)
         }
+        Err(e) => Err(format!("Expected {} at {:?}", &e.0, &e.1)),
     }
 }
 
+fn flush(
+    stream: &mut String,
+    container: &mut TokenStream,
+    follow: bool,
+    token_creator: impl Fn(&str, bool) -> TokenItem,
+) -> bool {
+    if stream.is_empty() {
+        return false;
+    } else {
+        container.push(token_creator(stream, follow));
+        stream.clear();
+        return true;
+    }
+}
+
+#[allow(unused_mut, unused_variables)]
 fn lexer<'a>(
     syntax_tree: &SyntaxValidationTree,
     stream: &'a str,
     tracker: &mut Tracker,
-    stack_counter: &mut u8
-) -> Result<Vec<TokenItem>, (char,Tracker)> {
-    *stack_counter+=1;
-    let brace_types = HashMap::<char, char>::from([('(', ')'), ('{', '}'), ('[', ']')]);
-    let mut evaluated_stream = String::new();
-    let mut evaluated_sub_stream = String::new();
-    let mut evaluated_subtoken_stream = String::new();
+    stack_counter: u8,
+    brace: char,
+) -> Result<(TokenStream, usize), (char, Tracker)> {
+    let stack_counter = stack_counter + 1;
+    let brace_map = |ch| match ch {
+        '(' => Some(Evaluatable("EXPRESSION")),
+        '{' => Some(Evaluatable("CODEBLOCK")),
+        '[' => Some(DataType(Type::Collection)),
+        _ => None,
+    };
+    let mut node_stack: Vec<TreeNode> = Vec::new();
     let mut token_container = Vec::new();
-    let mut brace = false;
-    let mut brace_close: char = '\0';
-    let mut brace_nest = 0;
+    let mut block_stream = String::new();
+    let mut main_stream = String::new();
+    let mut operator_stream = String::new();
+    let mut comment = false;
     let mut single_quote = false;
     let mut double_quote = false;
-    let mut braced = false;
-    let mut comment = false;
-    for (index, token) in stream.chars().enumerate() {
-        if token == '\n' {
-            if comment {comment = false;}
+    let mut idx = 0;
+    while let Some(ch) = stream.chars().nth(idx) {
+        let follow = stream
+            .chars()
+            .nth(idx + 1)
+            .map_or(false, |ch: char| ch == ' ' || ch == '\t');
+        if ch == '\n' {
+            comment = false;
             tracker.advance_row();
             tracker.col = 0;
+            idx += 1;
             continue;
-        }
-        else {
+        } else {
             tracker.advance_col();
         }
-        // Ignore all comments,
-        // comments start with a '##'
-        if token == '#' {
-            if let Some(ch) = stream.as_bytes().get(index + 1) {
-                if ch == &('#' as u8) {
-                    comment = true;
-                    continue;
-                }
-            }
-        }
-        if comment {continue;}
-        let previous_state = single_quote || double_quote || brace;
 
-        if token == '\'' && !(double_quote || brace) {
+        if ch == '#'
+            && stream
+                .chars()
+                .nth(idx + 1)
+                .map_or(false, |ch: char| ch == '#')
+        {
+            comment = true;
+        }
+
+        if comment {
+            idx += 1;
+            continue;
+        }
+
+        if ch == '\'' && !double_quote {
             single_quote = !single_quote;
-        } else if token == '"' && !(single_quote || brace) {
+        } else if ch == '"' && !single_quote {
             double_quote = !double_quote;
         }
 
-        if !(single_quote || double_quote) {
-            if let Some(close) = brace_types.get(&token) {
-                if brace {
-                    if close == &brace_close {
-                        brace_nest += 1;
-                    }
-                } else {
-                    brace = true;
-                    brace_close = *close;
-                    continue;
-                }
-            } else if token == brace_close {
-                if brace_nest > 0 {
-                    brace_nest -= 1;
-                } else if previous_state == (brace || single_quote || double_quote) {
-                    brace = false;
-                    braced = true;
-                }
+        if single_quote || double_quote {
+            flush(&mut main_stream, &mut token_container, follow, string_type);
+            if (single_quote && ch == '\'') || (double_quote && ch == '"') {
+                idx += 1;
+                continue;
             }
-        }
-
-        if brace || single_quote || double_quote {
-            if !((token == '\'' && single_quote) || (token == '"' && double_quote)) {
-                evaluated_sub_stream.push(token);
-            }
+            block_stream.push(ch);
         } else {
-            if token.is_ascii_alphanumeric() || token == '_' {
-                if !evaluated_subtoken_stream.is_empty() {
-                    token_container.push(token_type(&evaluated_subtoken_stream, true));
-                    evaluated_subtoken_stream.clear();
-                }
-                evaluated_stream.push(token);
-            } else if token != ' '
-                && token != '\t'
-                && token != '\''
-                && token != '"'
-                && token != ')'
-                && token != '}'
-                && token != ']'
-                && token != '['
-                && token != '{'
-                && token != '('
-            {
-                if !evaluated_stream.is_empty() {
-                    token_container.push(string_type(&evaluated_stream));
-                    evaluated_stream.clear();
-                }
-                evaluated_subtoken_stream.push(token);
-            } else {
-                if !evaluated_subtoken_stream.is_empty() {
-                    token_container.push(token_type(&evaluated_subtoken_stream, false));
-                    evaluated_subtoken_stream.clear();
-                }
-                if !evaluated_stream.is_empty() {
-                    token_container.push(string_type(&evaluated_stream));
-                }
-                evaluated_stream.clear();
-            }
-        }
-
-        if !(evaluated_sub_stream.is_empty() || (brace || single_quote || double_quote)) {
-            if braced {
-                let mut recursion_tracker = Tracker{row: tracker.row, col: 0};
-                match lexer(syntax_tree, &evaluated_sub_stream, &mut recursion_tracker, stack_counter) {
-                    Ok(result) => {
-                        token_container.push(TokenItem {
-                            value: Multiple(result),
-                            type_: if brace_close == ']' {
-                                DataType(Type::Collection)
-                            } else {
-                                Evaluatable(if brace_close == ')' {
-                                    "EXPRESSION"
-                                } else {
-                                    "CODE_BLOCK"
-                                })
-                            },
-                            follow: false,
-                        });
-                    },
-                    Err(e) => {
-                        return Err((e.0, *tracker));
-                    }
-                };
-                tracker.col-=if tracker.col > recursion_tracker.col {recursion_tracker.col} else {0};
-                braced = false;
-            } else {
+            if !block_stream.is_empty() {
                 token_container.push(TokenItem {
-                    value: Single(evaluated_sub_stream.clone()),
+                    value: Single(block_stream.clone()),
                     type_: DataType(Type::String),
                     follow: false,
                 });
+                block_stream.clear();
             }
-            evaluated_sub_stream.clear();
-        }
-        if brace || single_quote || double_quote {
-            if !evaluated_subtoken_stream.is_empty() {
-                token_container.push(token_type(&evaluated_subtoken_stream, false));
-                evaluated_subtoken_stream.clear();
-            }
-            if !evaluated_stream.is_empty() {
-                token_container.push(string_type(&evaluated_stream));
-                evaluated_stream.clear();
-            }
-        }
-    }
-
-    if !evaluated_stream.is_empty() {
-        token_container.push(string_type(&evaluated_stream));
-        evaluated_stream.clear();
-    }
-    if !evaluated_subtoken_stream.is_empty() {
-        token_container.push(token_type(&evaluated_subtoken_stream, false));
-        evaluated_subtoken_stream.clear();
-    }
-
-    if !evaluated_sub_stream.is_empty() || brace || single_quote || double_quote {
-        return Err((if brace {
-                brace_close
-            } else if single_quote {
-                '\''
+            if let Some(token_type) = brace_map(ch) {
+                flush(&mut main_stream, &mut token_container, follow, string_type);
+                let result = lexer(syntax_tree, &stream[idx + 1..], tracker, stack_counter, ch)?;
+                idx += result.1 + 1;
+                token_container.push(TokenItem {
+                    value: Multiple(result.0),
+                    type_: token_type,
+                    follow: false,
+                });
             } else {
-                '\"'
-            },
-        *tracker));
+                if ch.is_ascii_alphanumeric() {
+                    main_stream.push(ch);
+                } else {
+                    if ch == ' ' || ch == '\t' {
+                        flush(&mut main_stream, &mut token_container, follow, string_type);
+                        if !operator_stream.is_empty() {
+                            flush(
+                                &mut operator_stream,
+                                &mut token_container,
+                                follow,
+                                token_type,
+                            );
+                        }
+                    } else if ch == ')' || ch == '}' || ch == ']' {
+                        flush(&mut main_stream, &mut token_container, follow, string_type);
+                        return Ok((token_container, idx));
+                    } else if ch == '_' {
+                        main_stream.push(ch);
+                    } else {
+                        flush(&mut main_stream, &mut token_container, follow, string_type);
+                        operator_stream.push(ch);
+                    }
+                }
+            }
+        }
+        idx += 1;
     }
-    return Ok(token_container);
+    if stack_counter > 1 {
+        Err((
+            match brace {
+                '(' => ')',
+                '[' => ']',
+                '{' => '}',
+                _ => {
+                    println!("{}", stream);
+                    brace
+                }
+            },
+            *tracker,
+        ))
+    } else {
+        flush(&mut main_stream, &mut token_container, false, string_type);
+        Ok((token_container, idx - 1))
+    }
 }

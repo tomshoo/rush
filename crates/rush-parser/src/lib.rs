@@ -99,7 +99,6 @@ pub mod token {
                     write!(f, "Token(values=[ {}], type={:?})", string, &self.type_)
                 }
             }
-            //write!(f, "Token(value={}, type={:?})", &self.value, &self.type_)
         }
     }
 

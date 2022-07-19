@@ -1,6 +1,3 @@
-extern crate argparse;
-extern crate rush_base;
-
 use argparse::ArgumentParser;
 use rush_base::base;
 use std::process;

@@ -1,10 +1,10 @@
+use derive_builder::*;
 use lazy_static::lazy_static;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use derive_builder::*;
 
-
+// Tree path relations
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Relation {
     SingleChoice,
@@ -25,10 +25,11 @@ lazy_static! {
     ]);
 }
 
+// Node wrapper for the syntax validation tree
 #[derive(Debug, Builder, PartialEq, Eq)]
 #[builder(pattern = "owned")]
 #[builder(name = "NodeBuilder")]
-pub struct TreeNode {
+pub(super) struct TreeNode {
     value: String,
     relation: Relation,
 
@@ -36,16 +37,25 @@ pub struct TreeNode {
     joint_nodes: HashMap<String, Rc<RefCell<TreeNode>>>,
 }
 
+#[allow(dead_code)]
 impl TreeNode {
+    // Add new node
     pub fn insert<S: IntoString>(&mut self, id: S, node: Rc<RefCell<TreeNode>>) {
         self.joint_nodes.insert(id.into(), node);
     }
+
+    // Set relation for current node
     pub fn relation(&mut self, relation: Relation) {
         self.relation = relation;
     }
 }
 
-fn get_node_from_value<'a, S: IntoString>(value: S, relation: Relation) -> Result<Rc<RefCell<TreeNode>>, String> {
+// Evaluate node, indirect recursion if requested
+// Recursion request is made by appending "+r" at the end of evaluation string
+fn get_node_from_value<'a, S: IntoString>(
+    value: S,
+    relation: Relation,
+) -> Result<Rc<RefCell<TreeNode>>, String> {
     let mut value = value.into();
     if value.ends_with("+r") {
         value.pop();
@@ -63,6 +73,8 @@ fn get_node_from_value<'a, S: IntoString>(value: S, relation: Relation) -> Resul
     )));
 }
 
+// Print the tree from the given node
+// Utilizes an immensly simplified DFS approach
 fn print_tree(root_node: &TreeNode, ident_level: u8, visited: &mut Vec<TreeNode>) {
     let mut ident_string = String::new();
     for _ in 0..ident_level {
@@ -99,9 +111,9 @@ fn print_tree(root_node: &TreeNode, ident_level: u8, visited: &mut Vec<TreeNode>
     }
 }
 
+// Generate the relation tree
 #[allow(unused_variables, unused_mut, unused_assignments)]
-fn generate_relation_tree<S: IntoString>(stream: S) -> Result<Rc<RefCell<TreeNode>>, String>
-{
+fn generate_relation_tree<S: IntoString>(stream: S) -> Result<Rc<RefCell<TreeNode>>, String> {
     let stream = stream.into();
     if stream.is_empty() {
         return Err("Empty string cannot be parsed".to_owned());
@@ -223,23 +235,20 @@ fn generate_relation_tree<S: IntoString>(stream: S) -> Result<Rc<RefCell<TreeNod
     Ok(tree_root)
 }
 
-pub mod analyzer {
-    use super::{generate_relation_tree, print_tree, TreeNode, IntoString};
+pub mod syntax_tree {
+    use super::{generate_relation_tree, print_tree, IntoString, TreeNode};
 
     use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
     pub struct SyntaxValidationTree {
         entry_points: HashMap<&'static str, Rc<RefCell<TreeNode>>>,
-        pub current: Option<Rc<RefCell<TreeNode>>>,
-        pub parent: Option<Rc<RefCell<TreeNode>>>,
     }
 
+    #[allow(dead_code)]
     impl SyntaxValidationTree {
         pub fn from(syntax_streams: Vec<(&'static str, &'static str)>) -> Self {
             let mut syntax_tree = Self {
                 entry_points: HashMap::new(),
-                current: None,
-                parent: None,
             };
             for (entry, stream) in syntax_streams {
                 syntax_tree
@@ -249,8 +258,7 @@ pub mod analyzer {
             syntax_tree
         }
 
-        pub fn show_entry<'a, S: IntoString>(&self, entry: S) -> Result<(), String>
-        {
+        pub fn show_entry<'a, S: IntoString>(&self, entry: S) -> Result<(), String> {
             if let Some(tree) = self.entry_points.get(entry.clone().into().as_str()) {
                 println!("Showing for entry: {}", entry);
                 print_tree(&*tree.borrow(), 0, &mut vec![]);
@@ -260,66 +268,16 @@ pub mod analyzer {
             Ok(())
         }
 
-        pub fn set_current<S: IntoString>(&mut self, entry: S) -> Result<(), String>
-        {
-            if self.current.is_none() {
-                if let Some(node) = self.entry_points.get(entry.clone().into().as_str()) {
-                    self.current = Some(Rc::clone(node));
-                    Ok(())
-                } else {
-                    Err(format!("Entry: {} does not exist", entry))
-                }
-            } else {
-                let a_node;
-                {
-                    match self
-                        .current
-                        .as_ref()
-                        .unwrap()
-                        .borrow()
-                        .joint_nodes
-                        .get(entry.clone().into().as_str()) {
-                        Some(node) => {
-                            a_node = Some(Rc::clone(node));
-                        }
-                        None => {
-                            return Err(format!("Entry: {} does not exist", entry));
-                        }
-                    }
-                }
-                self.current = a_node;
-                Ok(())
-            }
+        pub(super) fn get_entry(&self, id: impl IntoString) -> Option<&Rc<RefCell<TreeNode>>> {
+            self.entry_points.get(id.into().as_str())
         }
 
-        pub fn set_parent(&mut self) {
-            self.parent = self.current.clone();
-        }
-
-        pub fn reset_parent(&mut self) {
-            self.parent = None;
-        }
-
-        pub fn entry_exists<S: IntoString>(&self, entry: S) -> bool {
-            if *&self.current.is_some() {
-                self.current
-                    .as_ref()
-                    .unwrap()
-                    .borrow()
-                    .joint_nodes
-                    .get(entry.into().as_str())
-                    .is_some()
-            } else {
-                self.entry_points.get(entry.into().as_str()).is_some()
-            }
-        }
         pub fn entries(&self) -> Vec<String> {
             let mut entrylist = Vec::new();
-            for (entry,_) in &self.entry_points {
+            for (entry, _) in &self.entry_points {
                 entrylist.push(entry.to_string());
             }
             entrylist
         }
     }
-
 }
