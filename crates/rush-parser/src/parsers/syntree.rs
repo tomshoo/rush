@@ -1,7 +1,4 @@
-<<<<<<< Updated upstream
-=======
 use crate::IntoString;
->>>>>>> Stashed changes
 use derive_builder::*;
 use lazy_static::lazy_static;
 use std::cell::RefCell;
@@ -51,11 +48,8 @@ impl TreeNode {
     }
 }
 
-<<<<<<< Updated upstream
 // Evaluate node, indirect recursion if requested
 // Recursion request is made by appending "+r" at the end of evaluation string
-=======
->>>>>>> Stashed changes
 fn get_node_from_value<'a, S: IntoString>(
     value: S,
     relation: Relation,
@@ -239,14 +233,14 @@ fn generate_relation_tree<S: IntoString>(stream: S) -> Result<Rc<RefCell<TreeNod
     Ok(tree_root)
 }
 
-<<<<<<< Updated upstream
 pub mod syntax_tree {
-=======
-pub mod analyzer {
->>>>>>> Stashed changes
     use super::{generate_relation_tree, print_tree, IntoString, TreeNode};
 
-    use std::{cell::RefCell, collections::HashMap, rc::Rc};
+    use std::{
+        cell::{Ref, RefCell},
+        collections::HashMap,
+        rc::Rc,
+    };
 
     pub struct SyntaxValidationTree {
         entry_points: HashMap<&'static str, Rc<RefCell<TreeNode>>>,
@@ -276,41 +270,9 @@ pub mod analyzer {
             Ok(())
         }
 
-<<<<<<< Updated upstream
-        pub(super) fn get_entry(&self, id: impl IntoString) -> Option<&Rc<RefCell<TreeNode>>> {
-            self.entry_points.get(id.into().as_str())
-=======
-        pub fn set_current<S: IntoString>(&mut self, entry: S) -> Result<(), String> {
-            if self.current.is_none() {
-                if let Some(node) = self.entry_points.get(entry.clone().into().as_str()) {
-                    self.current = Some(Rc::clone(node));
-                    Ok(())
-                } else {
-                    Err(format!("Entry: {} does not exist", entry))
-                }
-            } else {
-                let a_node;
-                {
-                    match self
-                        .current
-                        .as_ref()
-                        .unwrap()
-                        .borrow()
-                        .joint_nodes
-                        .get(entry.clone().into().as_str())
-                    {
-                        Some(node) => {
-                            a_node = Some(Rc::clone(node));
-                        }
-                        None => {
-                            return Err(format!("Entry: {} does not exist", entry));
-                        }
-                    }
-                }
-                self.current = a_node;
-                Ok(())
-            }
->>>>>>> Stashed changes
+        pub(super) fn get_entry(&self, id: impl IntoString) -> Option<Rc<Ref<TreeNode>>> {
+            let res = self.entry_points.get(id.into().as_str())?;
+            return Some(Rc::from(res.borrow()));
         }
 
         pub fn entries(&self) -> Vec<String> {
