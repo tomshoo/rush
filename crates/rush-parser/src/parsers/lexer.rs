@@ -230,6 +230,9 @@ fn lexer<'a>(
                                 item.type_ = token_type(&content);
                             }
                         } else {
+                            if item.type_ == Token {
+                                item.type_ = string_type(&item.value.get_string().unwrap());
+                            };
                             stack.push(new_operator());
                         }
                     }
