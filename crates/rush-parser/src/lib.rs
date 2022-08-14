@@ -3,6 +3,9 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use token::TokenType;
 
+pub trait IntoString: Into<String> + std::fmt::Debug + std::fmt::Display + Clone {}
+impl<T: Into<String> + std::fmt::Debug + std::fmt::Display + Clone> IntoString for T {}
+
 lazy_static! {
     static ref TOKEN_MAP: HashMap<&'static str, TokenType> = HashMap::from([
         (".", TokenType::Operator("SCOPE_LOCATION")),
@@ -42,6 +45,8 @@ pub mod token {
     use std::fmt::{self, Display};
     use std::hash::{Hash, Hasher};
 
+    use crate::IntoString;
+
     // All available datatypes excluding string and collection
     #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
     pub enum DataType {
@@ -65,14 +70,14 @@ pub mod token {
     #[derive(Debug, Clone, Eq, PartialEq)]
     pub enum TokenItemType {
         Single(String),
-        Multiple(Vec<Token>)
+        Multiple(Vec<Token>),
     }
 
     impl TokenItemType {
-        pub fn get_string(&self) -> Result<String, &str> {
+        pub fn get_string(&self) -> Result<String, impl IntoString> {
             match &self {
-                TokenItemType::Single(some) => {Ok(some.to_string())}
-                _ => {Err("Variant is not of type single")}
+                TokenItemType::Single(some) => Ok(some.to_string()),
+                _ => Err("Variant is not of type Single"),
             }
         }
     }
@@ -92,11 +97,11 @@ pub mod token {
                     write!(f, "Token(value={}, type={:?})", string, &self.type_)
                 }
                 TokenItemType::Multiple(vec) => {
-                    let mut string = String::new();
+                    let mut string = String::from("\n");
                     for token in vec {
-                        string.push_str(&format!("[{}] ", token));
-                    };
-                    write!(f, "Token(values=[ {}], type={:?})", string, &self.type_)
+                        string.push_str(&format!("\t[{}]\n", token));
+                    }
+                    write!(f, "Token(values=[{}], type={:?})", string, &self.type_)
                 }
             }
             //write!(f, "Token(value={}, type={:?})", &self.value, &self.type_)
