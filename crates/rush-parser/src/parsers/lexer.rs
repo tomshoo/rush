@@ -3,7 +3,7 @@ use std::str::Chars;
 
 use super::syntree::TreeNode;
 // Token properties
-use super::syntree::analyzer::SyntaxValidationTree;
+use super::syntree::syntax_tree::SyntaxValidationTree;
 use crate::token::DataType as Type;
 use crate::token::Token as TokenItem;
 use crate::token::TokenItemType::*;
@@ -119,6 +119,7 @@ fn flush(
     }
 }
 
+#[allow(unused_mut, unused_variables)]
 fn lexer<'a>(
     _validator: impl Fn(TokenItem) -> bool,
     stream: &mut Peekable<Chars>,

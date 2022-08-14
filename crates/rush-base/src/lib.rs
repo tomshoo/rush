@@ -1,5 +1,5 @@
 pub mod base {
-    use rush_parser::parsers::{lexer::lexer_charwise, syntree::analyzer::SyntaxValidationTree};
+    use rush_parser::parsers::{lexer::lexer_charwise, syntree::syntax_tree::SyntaxValidationTree};
     use std::io::Write;
 
     pub struct Read {
