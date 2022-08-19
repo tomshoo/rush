@@ -243,6 +243,10 @@ fn lexer<'a>(
             }
         }
     }
-    token_stack.last_mut().map_or((), type_assign);
-    Ok(token_stack)
+    if !brace_stack.is_empty() {
+        Err((brace_stack.last().unwrap().1 .1, *tracker))
+    } else {
+        token_stack.last_mut().map_or((), type_assign);
+        Ok(token_stack)
+    }
 }
