@@ -1,7 +1,7 @@
 use crate::IntoString;
 use derive_builder::*;
 use lazy_static::lazy_static;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -45,6 +45,11 @@ impl TreeNode {
     // Set relation for current node
     pub fn relation(&mut self, relation: Relation) {
         self.relation = relation;
+    }
+
+    pub fn get<S: IntoString>(&self, key: S) -> Option<Ref<Self>> {
+        let entry = self.joint_nodes.get(&key.into())?;
+        Some(entry.borrow())
     }
 }
 
@@ -253,9 +258,10 @@ pub mod syntax_tree {
                 entry_points: HashMap::new(),
             };
             for (entry, stream) in syntax_streams {
-                syntax_tree
-                    .entry_points
-                    .insert(entry, generate_relation_tree(stream).unwrap());
+                syntax_tree.entry_points.insert(
+                    entry,
+                    generate_relation_tree(format!("{entry} {stream}").as_str()).unwrap(),
+                );
             }
             syntax_tree
         }
@@ -270,9 +276,9 @@ pub mod syntax_tree {
             Ok(())
         }
 
-        pub(super) fn get_entry(&self, id: impl IntoString) -> Option<Rc<Ref<TreeNode>>> {
+        pub(super) fn get_entry(&self, id: impl IntoString) -> Option<Ref<TreeNode>> {
             let res = self.entry_points.get(id.into().as_str())?;
-            return Some(Rc::from(res.borrow()));
+            return Some(res.borrow());
         }
 
         pub fn entries(&self) -> Vec<String> {
@@ -282,5 +288,45 @@ pub mod syntax_tree {
             }
             entrylist
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_show_entry() {
+        let tree = syntax_tree::SyntaxValidationTree::from(vec![("test", "dummy !syntax")]);
+        assert!(tree.show_entry("test").is_ok());
+        assert!(tree.show_entry("fail").is_err());
+    }
+
+    #[test]
+    fn test_get_entry() {
+        let tree = syntax_tree::SyntaxValidationTree::from(vec![("test", "dummy !syntax")]);
+        assert!(tree.get_entry("test").is_some());
+        assert!(tree.get_entry("fail").is_none());
+    }
+
+    #[test]
+    fn test_entries() {
+        let tree_full = syntax_tree::SyntaxValidationTree::from(vec![("test", "dummy !syntax")]);
+        let tree_empty = syntax_tree::SyntaxValidationTree::from(vec![]);
+        assert!(!tree_full.entries().is_empty());
+        assert!(tree_empty.entries().is_empty());
+    }
+
+    #[test]
+    fn test_treenode_get() {
+        let tree = syntax_tree::SyntaxValidationTree::from(vec![("test", "dummy !syntax")]);
+        let node = tree.get_entry("test").unwrap();
+
+        let node1 = node.get("dummy");
+
+        assert!(node1.is_some());
+        assert!(node.get("fail").is_none());
+        assert!(node1.as_ref().unwrap().get("syntax").is_some());
+        assert!(node1.unwrap().get("fail").is_none());
     }
 }

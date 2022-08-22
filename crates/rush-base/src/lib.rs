@@ -7,12 +7,13 @@ pub mod base {
     }
 
     impl Read {
+        #[rustfmt::skip]
         pub fn new() -> Self {
             Self { validation_tree:  SyntaxValidationTree::from(vec![
-                ("let",    "let !dyn !mut Token !(?# Token) !(:: DataType) = ($ Token)^Expression^Data"),
-                ("func",   "func Token !COLLECTION CODEBLOCK"),
-                ("if",     "if EXPRESSION CODEBLOCK else @if CODEBLOCK"),
-                ("switch", "switch EXPRESSION : (case EXPRESSION : CODEBLOCK @case !(default : CODEBLOCK))")
+                ("let",    "!dyn !mut Token !(?# Token) !(:: DataType) = ($ Token)^Expression^Data"),
+                ("func",   "Token !COLLECTION CODEBLOCK"),
+                ("if",     "EXPRESSION CODEBLOCK else @if CODEBLOCK"),
+                ("switch", "EXPRESSION : (case EXPRESSION : CODEBLOCK @case !(default : CODEBLOCK))")
             ])}
         }
 
