@@ -55,7 +55,7 @@ pub mod base {
                         if analysis.get(0).map_or(false, |token| {
                             token
                                 .value
-                                .get_string()
+                                .get_single()
                                 .map_or(false, |stream| stream == "exit")
                         }) {
                             break;

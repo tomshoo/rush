@@ -1,4 +1,6 @@
+pub mod dtype;
 pub mod parsers;
+use dtype::SMType;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use token::TokenType;
@@ -41,11 +43,9 @@ lazy_static! {
 }
 
 pub mod token {
-    // use super::TOKEN_MAP;
+    type TokenItemType = crate::SMType<String, Token>;
     use std::fmt::{self, Display};
     use std::hash::{Hash, Hasher};
-
-    use crate::IntoString;
 
     // All available datatypes excluding string and collection
     #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
@@ -65,21 +65,6 @@ pub mod token {
         Operator(&'static str),
         DataType(DataType),
         Token,
-    }
-
-    #[derive(Debug, Clone, Eq, PartialEq)]
-    pub enum TokenItemType {
-        Single(String),
-        Multiple(Vec<Token>),
-    }
-
-    impl TokenItemType {
-        pub fn get_string(&self) -> Result<String, impl IntoString> {
-            match &self {
-                TokenItemType::Single(some) => Ok(some.to_string()),
-                _ => Err("Variant is not of type Single"),
-            }
-        }
     }
 
     // Token Type to hold each token signature

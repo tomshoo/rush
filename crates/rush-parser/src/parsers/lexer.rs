@@ -1,12 +1,12 @@
 use std::iter::Peekable;
 use std::str::Chars;
 
-use super::syntree::TreeNode;
+use super::syntree::treenode::TreeNode;
 // Token properties
 use super::syntree::syntax_tree::SyntaxValidationTree;
+use crate::dtype::SMType::*;
 use crate::token::DataType as Type;
 use crate::token::Token as TokenItem;
-use crate::token::TokenItemType::*;
 use crate::token::TokenType::{self, *};
 use crate::TOKEN_MAP;
 
@@ -133,8 +133,8 @@ fn lexer<'a>(
     };
     let type_assign = |item: &mut TokenItem| {
         match item.type_ {
-            Token => item.type_ = string_type(&item.value.get_string().unwrap()),
-            Operator(_) => item.type_ = token_type(&item.value.get_string().unwrap()),
+            Token => item.type_ = string_type(&item.value.get_single().unwrap()),
+            Operator(_) => item.type_ = token_type(&item.value.get_single().unwrap()),
             _ => {}
         };
         item.follow = true
@@ -179,9 +179,9 @@ fn lexer<'a>(
                 })
             } else {
                 stack.last_mut().map_or((), |entry| {
-                    let mut orig = entry.value.get_string().unwrap();
+                    let mut orig = entry.value.get_single_mut().unwrap();
                     orig.push(ch);
-                    entry.value = Single(orig);
+                    entry.value = Single(orig.to_string());
                 })
             }
         } else if let Some(entry) = block_type(ch) {
@@ -231,7 +231,7 @@ fn lexer<'a>(
                             }
                         } else {
                             if item.type_ == Token {
-                                item.type_ = string_type(&item.value.get_string().unwrap());
+                                item.type_ = string_type(&item.value.get_single().unwrap());
                             };
                             stack.push(new_operator());
                         }
