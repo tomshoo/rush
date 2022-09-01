@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use rush_errors::IRError;
+
 use super::treenode::Relation;
 use crate::dtype::SMType;
 use crate::IntoString;
@@ -77,7 +79,7 @@ impl IntermediateRepr {
     fn new() -> Self {
         Self(vec![])
     }
-    fn push(&mut self, ch: char, parencount: &mut i32) -> Result<(), impl IntoString> {
+    fn push(&mut self, ch: char, parencount: &mut i32) -> Result<(), IRError> {
         Ok(if ch == '(' {
             *parencount += 1
         } else if ch == ')' {
@@ -123,7 +125,9 @@ impl IntermediateRepr {
         } else if ch == '^' {
             println!("1",);
             if self.0.is_empty() {
-                return Err("Operator \'^\' cannont be used at the beginning of the stream");
+                return Err(IRError::UnexpectedOperator(
+                    "Operator \'^\' cannont be used at the beginning of the stream".into(),
+                ));
             }
             let mut last = self.0.pop().unwrap();
             match last.0 {
@@ -152,15 +156,12 @@ impl IntermediateRepr {
 }
 
 impl IRGenerator {
-    pub fn generate_ir(stream: impl IntoString) -> Result<(), String> {
+    pub fn generate_ir(stream: impl IntoString) -> Result<(), IRError> {
         let stream: String = stream.into();
         let mut ir_stack = IntermediateRepr::new();
         let mut parencount = 0;
         for ch in stream.chars() {
-            let res = ir_stack.push(ch, &mut parencount);
-            if res.is_err() {
-                return Err(res.err().unwrap().into());
-            }
+            ir_stack.push(ch, &mut parencount)?;
         }
         println!("{:?}", ir_stack);
         Ok(())
