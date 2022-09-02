@@ -10,11 +10,11 @@ pub mod base {
         #[rustfmt::skip]
         pub fn new() -> Self {
             Self { validation_tree:  SyntaxValidationTree::from(vec![
-                ("let",    "!dyn !mut Token !(?# Token) !(:: DataType) = ($ Token)^Expression^Data"),
+                ("let",    "Token !(: DataType^(dyn [DataType*])) = Token^EXPRESSION"),
                 ("func",   "Token !COLLECTION CODEBLOCK"),
                 ("if",     "EXPRESSION CODEBLOCK else @if CODEBLOCK"),
                 ("switch", "EXPRESSION : (case EXPRESSION : CODEBLOCK @case !(default : CODEBLOCK))")
-            ])}
+            ]).unwrap()}
         }
 
         pub fn show_tree(&self) {

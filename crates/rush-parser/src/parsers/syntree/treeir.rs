@@ -7,7 +7,7 @@ use crate::dtype::SMType;
 use crate::IntoString;
 
 #[derive(Debug, Clone, Copy)]
-enum StreamState {
+pub(crate) enum StreamState {
     Fixed,
     NotFixed,
 }
@@ -15,10 +15,10 @@ enum StreamState {
 type NodeType = SMType<(String, StreamState), (String, StreamState)>;
 
 #[derive(Debug)]
-struct IRNode(NodeType, Relation);
+pub(crate) struct IRNode(pub NodeType, pub Relation);
 pub struct IRGenerator;
 
-struct IntermediateRepr(Vec<IRNode>);
+pub(crate) struct IntermediateRepr(pub Vec<IRNode>);
 
 impl Debug for IntermediateRepr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -81,9 +81,25 @@ impl IntermediateRepr {
     }
     fn push(&mut self, ch: char, parencount: &mut i32) -> Result<(), IRError> {
         Ok(if ch == '(' {
+            if *parencount > 0 {
+                if let None = self.0.last_mut().map(|node| node.push(ch)) {
+                    let mut node = IRNode::new();
+                    node.push(ch);
+                    node.set_state(StreamState::NotFixed);
+                    self.0.push(node);
+                }
+            }
             *parencount += 1
         } else if ch == ')' {
-            *parencount -= 1
+            *parencount -= 1;
+            if *parencount > 0 {
+                if let None = self.0.last_mut().map(|node| node.push(ch)) {
+                    let mut node = IRNode::new();
+                    node.push(ch);
+                    node.set_state(StreamState::NotFixed);
+                    self.0.push(node);
+                }
+            }
         } else if *parencount > 0 {
             let (mut node, empty) = self.0.last_mut().map_or((None, false), |node| {
                 if node.is_empty() {
@@ -98,6 +114,7 @@ impl IntermediateRepr {
             } else if let (Some(node), false) = (&mut node, empty) {
                 if let Some(StreamState::Fixed) = node.get_current_state() {
                     let mut node = IRNode::new();
+                    node.push(ch);
                     node.set_state(StreamState::NotFixed);
                     self.0.push(node);
                 } else {
@@ -123,23 +140,28 @@ impl IntermediateRepr {
                 self.0.push(node)
             }
         } else if ch == '^' {
-            println!("1",);
             if self.0.is_empty() {
                 return Err(IRError::UnexpectedOperator(
                     "Operator \'^\' cannont be used at the beginning of the stream".into(),
                 ));
             }
             let mut last = self.0.pop().unwrap();
+            let last_is_empty = last.is_empty();
             match last.0 {
                 SMType::Single(item) => {
-                    last.0 = SMType::Multiple(vec![item, (String::new(), StreamState::Fixed)])
-                }
-                _ => {
+                    last.0 = SMType::Multiple(vec![item]);
                     last.0
                         .get_multiple_mut()
                         .unwrap()
                         .push((String::new(), StreamState::Fixed));
+                    dbg!(&last);
+                    dbg!(&last_is_empty);
                 }
+                _ => last.0.get_multiple_mut().map_or((), |vec| {
+                    if vec.last().map_or(false, |node| !node.0.is_empty()) {
+                        vec.push((String::new(), StreamState::Fixed))
+                    }
+                }),
             }
             self.0.push(last);
         } else {
@@ -156,14 +178,13 @@ impl IntermediateRepr {
 }
 
 impl IRGenerator {
-    pub fn generate_ir(stream: impl IntoString) -> Result<(), IRError> {
+    pub(crate) fn generate_ir(stream: impl IntoString) -> Result<IntermediateRepr, IRError> {
         let stream: String = stream.into();
         let mut ir_stack = IntermediateRepr::new();
         let mut parencount = 0;
         for ch in stream.chars() {
             ir_stack.push(ch, &mut parencount)?;
         }
-        println!("{:?}", ir_stack);
-        Ok(())
+        Ok(ir_stack)
     }
 }
