@@ -1,5 +1,5 @@
 [package]
-name = "rush-errors"
+name = "rush-core"
 version = "0.1.0"
 edition = "2021"
 

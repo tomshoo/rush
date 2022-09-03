@@ -1,11 +1,11 @@
 use derive_builder::*;
-use rush_errors::SVTError;
+use rush_core::errors::Result;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::dtype::SMType;
 
-use super::treeir::{IRGenerator, IntermediateRepr, StreamState};
+use super::treeir::{irepr::IntermediateRepr, IRGenerator, StreamState};
 
 // Tree path relations
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -37,7 +37,7 @@ pub(super) fn print_tree(_root_node: &TreeNode, _ident_level: u8, _visited: &mut
 
 // Generate the relation tree
 #[allow(unused_variables, unused_mut, unused_assignments)]
-pub(super) fn generate_relation_tree(ir: &mut IntermediateRepr) -> Result<Rc<TreeNode>, SVTError> {
+pub(super) fn generate_relation_tree(ir: &mut IntermediateRepr) -> Result<Rc<TreeNode>> {
     let mut node = NodeBuilder::default().build().unwrap();
     println!("START",);
     while let Some(node) = ir.0.pop() {

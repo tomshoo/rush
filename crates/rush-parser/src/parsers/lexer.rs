@@ -1,3 +1,4 @@
+use rush_core::Tracker;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -32,27 +33,11 @@ fn token_type(string: &str) -> TokenType {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Tracker {
-    row: u16,
-    col: u16,
-}
-
-impl Tracker {
-    pub(crate) fn advance_col(&mut self) {
-        self.col += 1;
-    }
-
-    pub(crate) fn advance_row(&mut self) {
-        self.row += 1;
-    }
-}
-
 pub fn lexer_charwise<'a>(
     syntax_tree: &SyntaxValidationTree,
     stream: &'a str,
 ) -> Result<Vec<TokenItem>, String> {
-    let mut tracker = Tracker { row: 1, col: 0 };
+    let mut tracker = Tracker::new();
     let result = lexer(
         create_validator(syntax_tree),
         &mut stream.chars().peekable(),
@@ -148,11 +133,11 @@ fn lexer<'a>(
             if comment {
                 comment = false;
             };
-            tracker.advance_row();
-            tracker.col = 0;
+            tracker.update_row();
+            tracker.reset_col();
             continue;
         } else {
-            tracker.advance_col();
+            tracker.update_row();
         }
 
         if ch == '#' && stream.peek().map_or(false, |ch| ch == &'#') {

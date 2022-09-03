@@ -2,7 +2,6 @@ pub(crate) mod treeir;
 pub(crate) mod treenode;
 
 pub mod syntax_tree {
-    use super::treeir;
     use super::treeir::IRGenerator;
     use super::treenode;
     use crate::IntoString;
@@ -10,11 +9,7 @@ pub mod syntax_tree {
     use treenode::print_tree;
     use treenode::TreeNode;
 
-    use std::{
-        cell::{Ref, RefCell},
-        collections::HashMap,
-        rc::Rc,
-    };
+    use std::{collections::HashMap, rc::Rc};
 
     pub struct SyntaxValidationTree {
         entry_points: HashMap<&'static str, Rc<TreeNode>>,
@@ -24,7 +19,7 @@ pub mod syntax_tree {
     impl SyntaxValidationTree {
         pub fn from(
             syntax_streams: Vec<(&'static str, &'static str)>,
-        ) -> Result<Self, rush_errors::SVTError> {
+        ) -> rush_core::errors::Result<Self> {
             let mut syntax_tree = Self {
                 entry_points: HashMap::new(),
             };
