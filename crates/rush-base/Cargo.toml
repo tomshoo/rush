@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 rush-parser = { path = "../rush-parser", version = "0.1.0" }
+rush-core = { path = "../rush-core", version = "0.1.0" }

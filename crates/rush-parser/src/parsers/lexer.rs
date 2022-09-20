@@ -1,11 +1,7 @@
-use rush_core::Tracker;
-use std::iter::Peekable;
-use std::str::Chars;
+use rush_core::{error::LexerError, interfaces::smtype::SMulType, Tracker};
+use std::{iter::Peekable, str::Chars};
 
-use super::syntree::treenode::TreeNode;
 // Token properties
-use super::syntree::syntax_tree::SyntaxValidationTree;
-use crate::dtype::SMType::*;
 use crate::token::DataType as Type;
 use crate::token::Token as TokenItem;
 use crate::token::TokenType::{self, *};
@@ -33,101 +29,61 @@ fn token_type(string: &str) -> TokenType {
     }
 }
 
-pub fn lexer_charwise<'a>(
-    syntax_tree: &SyntaxValidationTree,
-    stream: &'a str,
-) -> Result<Vec<TokenItem>, String> {
-    let mut tracker = Tracker::new();
-    let result = lexer(
-        create_validator(syntax_tree),
-        &mut stream.chars().peekable(),
-        &mut tracker,
-    );
-    match result {
-        Ok(_) => Ok(result.unwrap()),
-        Err(e) => Err(format!("Expected {} at {:?}", &e.0, &e.1)),
-    }
-}
-
-#[allow(dead_code)]
-fn create_validator(_syntax_tree: &SyntaxValidationTree) -> impl Fn(TokenItem) -> bool {
-    use std::cell::RefCell;
-    use std::rc::Rc;
-    let validator_stack: Rc<RefCell<Vec<Rc<TreeNode>>>> = Rc::new(RefCell::new(vec![]));
-    move |_token: TokenItem| -> bool {
-        let _ = Rc::clone(&validator_stack);
-        return false;
-    }
-}
-
 #[inline(always)]
 fn muxed_ref<'m>(
     brace_stack: &'m mut Vec<(Vec<TokenItem>, (crate::token::TokenType, char))>,
     token_stack: &'m mut Vec<TokenItem>,
 ) -> &'m mut Vec<TokenItem> {
-    let mux = !brace_stack.is_empty();
-    if mux {
-        &mut brace_stack.last_mut().unwrap().0
-    } else {
-        token_stack
+    match brace_stack.last_mut() {
+        Some(last) => &mut last.0,
+        None => token_stack,
     }
 }
 
-fn flush(
-    brace_stack: &mut Vec<(Vec<TokenItem>, (crate::token::TokenType, char))>,
-    token_stack: &mut Vec<TokenItem>,
-    ch: char,
-) {
-    let new_token = || TokenItem {
-        value: Single(ch.to_string()),
-        type_: Token,
-        follow: false,
-    };
-    let stack = muxed_ref(brace_stack, token_stack);
-    if let Some(item) = stack.last_mut() {
-        match &mut item.value {
-            Single(content) => {
-                if item.type_ == Token && !item.follow {
-                    content.push(ch);
-                } else {
-                    stack.push(new_token())
-                }
-            }
-            Multiple(_) => stack.push(TokenItem {
-                value: Single(ch.to_string()),
-                type_: Token,
-                follow: false,
-            }),
-        }
-    } else {
-        stack.push(new_token())
+fn flush(stack: &mut Vec<TokenItem>, ch: char) -> rush_core::Result<()> {
+    Ok(
+        if let Some((content, Token, false)) = stack.last_mut().map_or(None, |node| {
+            node.value
+                .get_single_mut()
+                .map_or(None, |content| Some((content, node.type_, node.follow)))
+        }) {
+            content.push(ch);
+        } else {
+            stack.push(TokenItem::from_char(ch)?);
+        },
+    )
+}
+
+#[inline(always)]
+const fn block_type(ch: char) -> Option<(TokenType, char)> {
+    match ch {
+        '(' => Some((Evaluatable("PAREN"), ')')),
+        '[' => Some((Evaluatable("SQURE"), ']')),
+        '{' => Some((Evaluatable("BRACE"), '}')),
+        _ => None,
     }
+}
+
+#[inline(always)]
+fn auto_assign_type(item: &mut TokenItem) {
+    match item.type_ {
+        Token => item.type_ = string_type(&item.value.get_single().unwrap()),
+        Operator(_) => item.type_ = token_type(&item.value.get_single().unwrap()),
+        _ => {}
+    };
+    item.follow = true;
 }
 
 #[allow(unused_mut, unused_variables)]
 fn lexer<'a>(
-    _validator: impl Fn(TokenItem) -> bool,
     stream: &mut Peekable<Chars>,
     tracker: &mut Tracker,
-) -> Result<Vec<TokenItem>, (char, Tracker)> {
-    let block_type = |ch: char| match ch {
-        '(' => Some((Evaluatable("Expr"), ')')),
-        '[' => Some((DataType(Type::Collection), ']')),
-        '{' => Some((Evaluatable("Block"), '}')),
-        _ => None,
-    };
-    let type_assign = |item: &mut TokenItem| {
-        match item.type_ {
-            Token => item.type_ = string_type(&item.value.get_single().unwrap()),
-            Operator(_) => item.type_ = token_type(&item.value.get_single().unwrap()),
-            _ => {}
-        };
-        item.follow = true
-    };
+) -> rush_core::Result<Vec<TokenItem>> {
     let mut brace_stack: Vec<(Vec<TokenItem>, (crate::token::TokenType, char))> = vec![];
     let mut token_stack = vec![];
     let mut comment = false;
-    let (mut squote, mut dquote) = (false, false);
+    let mut squote = false;
+    let mut dquote = false;
     while let Some(ch) = stream.next() {
         if ch == '\n' {
             if comment {
@@ -137,7 +93,7 @@ fn lexer<'a>(
             tracker.reset_col();
             continue;
         } else {
-            tracker.update_row();
+            tracker.update_col();
         }
 
         if ch == '#' && stream.peek().map_or(false, |ch| ch == &'#') {
@@ -158,80 +114,89 @@ fn lexer<'a>(
             let stack = muxed_ref(&mut brace_stack, &mut token_stack);
             if (ch == '\'' && squote) || (ch == '"' && dquote) {
                 stack.push(TokenItem {
-                    value: Single(String::new()),
+                    value: SMulType::Single(String::new()),
                     type_: DataType(Type::String),
                     follow: false,
                 })
             } else {
-                stack.last_mut().map_or((), |entry| {
-                    let mut orig = entry.value.get_single_mut().unwrap();
-                    orig.push(ch);
-                    entry.value = Single(orig.to_string());
-                })
+                stack
+                    .last_mut()
+                    .map_or((), |entry| entry.value.get_single_mut().unwrap().push(ch))
             }
         } else if let Some(entry) = block_type(ch) {
             brace_stack.push((vec![], entry));
         } else if ch.is_alphanumeric() || ch == '_' {
-            flush(&mut brace_stack, &mut token_stack, ch);
+            flush(muxed_ref(&mut brace_stack, &mut token_stack), ch)?;
         } else if ch == ')' || ch == '}' || ch == ']' {
             let verify = brace_stack.last().map_or(false, |entry| ch == entry.1 .1);
             if verify {
                 let last = brace_stack.pop().unwrap();
                 if let Some(entry) = brace_stack.last_mut() {
                     entry.0.push(TokenItem {
-                        value: Multiple(last.0),
+                        value: SMulType::Multiple(last.0),
                         type_: last.1 .0,
                         follow: false,
                     })
                 } else {
                     token_stack.push(TokenItem {
-                        value: Multiple(last.0),
+                        value: SMulType::Multiple(last.0),
                         type_: last.1 .0,
                         follow: false,
                     })
                 }
             } else {
-                return Err((ch, *tracker));
+                return Err(LexerError::UnexpectedCharacter(*tracker, ch))?;
             }
         } else if ch.is_whitespace() {
             muxed_ref(&mut brace_stack, &mut token_stack)
                 .last_mut()
-                .map_or((), type_assign);
+                .map_or((), auto_assign_type);
+        } else if ch == '\\' {
+            match stream.next() {
+                Some('\n') => {
+                    return Err(LexerError::UnescapableCharacter(*tracker, "EOL".into()))?;
+                }
+                Some(item) => {
+                    tracker.update_col();
+                    flush(muxed_ref(&mut brace_stack, &mut token_stack), item)?;
+                }
+                None => return Err(LexerError::UnescapableCharacter(*tracker, "EOF".into()))?,
+            }
         } else {
             let stack = muxed_ref(&mut brace_stack, &mut token_stack);
-            let new_operator = || TokenItem {
-                value: Single(ch.to_string()),
-                type_: token_type(&ch.to_string()),
-                follow: false,
-            };
-            if let Some(item) = stack.last_mut() {
-                match &mut item.value {
-                    Single(content) => {
-                        if let Operator(_) = item.type_ {
-                            if item.follow {
-                                stack.push(new_operator());
-                            } else {
-                                content.push(ch);
-                                item.type_ = token_type(&content);
-                            }
-                        } else {
-                            if item.type_ == Token {
-                                item.type_ = string_type(&item.value.get_single().unwrap());
-                            };
-                            stack.push(new_operator());
-                        }
+            if let Some((content, type_, follow)) = stack.last_mut().map_or(None, |node| {
+                node.value.get_single_mut().map_or(None, |content| {
+                    Some((content, &mut node.type_, node.follow))
+                })
+            }) {
+                if let Operator(_) = type_ {
+                    if follow {
+                        stack.push(TokenItem::from_char(ch)?);
+                    } else {
+                        content.push(ch);
+                        *type_ = token_type(content);
                     }
-                    Multiple(_) => stack.push(new_operator()),
+                } else {
+                    if let Token = type_ {
+                        *type_ = string_type(content);
+                    };
+                    stack.push(TokenItem::from_char(ch)?);
                 }
             } else {
-                stack.push(new_operator());
+                stack.push(TokenItem::from_char(ch)?);
             }
         }
     }
-    if !brace_stack.is_empty() {
-        Err((brace_stack.last().unwrap().1 .1, *tracker))
-    } else {
-        token_stack.last_mut().map_or((), type_assign);
-        Ok(token_stack)
+    match brace_stack.last() {
+        Some(last) => Err(LexerError::UnexpectedCharacter(*tracker, last.1 .1))?,
+        None => {
+            token_stack.last_mut().map_or((), auto_assign_type);
+            Ok(token_stack)
+        }
     }
+}
+
+pub fn lexer_charwise<'a>(stream: &'a str) -> rush_core::Result<Vec<TokenItem>> {
+    let mut tracker = Tracker::new();
+    lexer(&mut stream.chars().peekable(), &mut tracker)
 }

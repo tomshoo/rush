@@ -1,4 +1,9 @@
-pub mod errors;
+pub mod error;
+pub mod interfaces;
+
+use error::RushError;
+
+pub type Result<T> = std::result::Result<T, RushError>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Tracker {
