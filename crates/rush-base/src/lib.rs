@@ -24,44 +24,39 @@ pub mod base {
                 continue;
             }
 
-            match lexer_charwise(&command_stream.trim()) {
+            match lexer_charwise(command_stream.trim()) {
                 Ok(analysis) => {
                     if analysis.get(0).map_or(false, |token| {
                         token
                             .value
-                            .get_single()
+                            .as_single()
                             .map_or(false, |stream| stream == "exit")
                     }) {
-                        break;
-                    } else {
-                        for tok in &analysis {
-                            println!("{}", tok);
-                        }
+                        return 0;
                     }
+                    analysis.iter().for_each(|tok| {
+                        println!("{}", tok);
+                    });
                 }
                 Err(why) => {
                     eprintln!("{why:?}")
                 }
             }
         }
-        return 0;
     }
 
     pub fn read_file(filepath: &str) -> i32 {
-        if !filepath.is_empty() {
-            let fcontent = std::fs::read_to_string(filepath).unwrap();
-            match lexer_charwise(&fcontent) {
-                Ok(vec) => {
-                    for tok in &vec {
-                        println!("{}", tok);
-                    }
-                }
-                Err(why) => {
-                    eprintln!("{:?} in file {}", why, filepath);
-                    return 1;
-                }
-            };
-        }
-        return 0;
+        std::fs::read_to_string(filepath).map_or(1, |fcontent| {
+            lexer_charwise(&fcontent).map_or_else(
+                |err| {
+                    eprintln!("{:?} in file {}", err, filepath);
+                    1
+                },
+                |vec| {
+                    vec.iter().for_each(|tok| println!("{}", tok));
+                    0
+                },
+            )
+        })
     }
 }

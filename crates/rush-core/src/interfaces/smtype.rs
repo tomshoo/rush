@@ -65,28 +65,28 @@ where
 }
 
 impl<T, U> SMulType<T, U> {
-    pub fn get_single(&self) -> Option<&T> {
+    pub fn as_single(&self) -> Option<&T> {
         if let SMulType::Single(val) = self {
             Some(val)
         } else {
             None
         }
     }
-    pub fn get_single_mut(&mut self) -> Option<&mut T> {
+    pub fn as_single_mut(&mut self) -> Option<&mut T> {
         if let SMulType::Single(val) = self {
             Some(val)
         } else {
             None
         }
     }
-    pub fn get_multiple(&self) -> Option<&Vec<U>> {
+    pub fn as_multiple(&self) -> Option<&Vec<U>> {
         if let SMulType::Multiple(val) = self {
             Some(val)
         } else {
             None
         }
     }
-    pub fn get_multiple_mut(&mut self) -> Option<&mut Vec<U>> {
+    pub fn as_multiple_mut(&mut self) -> Option<&mut Vec<U>> {
         if let SMulType::Multiple(val) = self {
             Some(val)
         } else {

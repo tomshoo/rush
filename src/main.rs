@@ -20,8 +20,6 @@ fn main() -> Result<(), String> {
     //Parse the file
     if !fname.is_empty() {
         process::exit(base::read_file(&fname));
-    } else {
-        Err("Cannot read from empty filename")?;
     }
 
     //Parse user input

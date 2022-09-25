@@ -38,7 +38,7 @@ const TOKEN_MAP: phf::Map<&'static str, TokenType> = phf_map!(
 );
 
 pub mod token {
-    use rush_core::error::LexerError;
+    use rush_core::error::lexer::LexerError;
     use rush_core::interfaces::smtype::SMulType;
     use rush_core::Result;
     use std::fmt::{self, Display};
@@ -101,10 +101,10 @@ pub mod token {
     impl Display for Token {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             match &self.value {
-                TokenItemType::Single(string) => {
+                SMulType::Single(string) => {
                     write!(f, "Token(value={}, type={:?})", string, &self.type_)
                 }
-                TokenItemType::Multiple(vec) => {
+                SMulType::Multiple(vec) => {
                     writeln!(f, "Token(values=[")?;
                     for token in vec {
                         writeln!(f, "\t[{}]", token)?;
@@ -120,11 +120,7 @@ pub mod token {
             if let TokenType::Token = other.type_ {
                 return true;
             }
-            &self.value == &other.value && &self.type_ == &other.type_
-        }
-
-        fn ne(&self, other: &Self) -> bool {
-            !self.eq(other)
+            self.value == other.value && self.type_ == other.type_
         }
     }
 
