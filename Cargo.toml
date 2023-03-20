@@ -1,11 +1,21 @@
 [package]
 name = "rush"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 
-[profile.release]
-lto=true
+[workspace]
+members = [
+    "crates/lexer",
+    "crates/parser",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rush-base = { path = "./crates/rush-base", version = "0.1.0" }
-argparse = "0.2.2"
+anyhow = { version = "1.0.69", features = ["backtrace"] }
+
+[dependencies.lexer]
+path = "./crates/lexer"
+
+[dependencies.parser]
+path = "./crates/parser"
