@@ -1,0 +1,23 @@
+## Do not assume this to be a final syntax, this file only exists
+## to test the lexer for now.
+
+fn main() -> uint8 {
+	let var: Iter<String> = Iter::from<String>("Something");
+
+	for (auto x, y: (0..=10).enumerate())
+		printf("Some String: %d %d", x, y);
+	}
+
+	(0..=10).for_each((item) => {
+		printf("Item: %d", item);
+	});
+
+	return 0;
+}
+
+"\\
+this is a string
+and it can be used as multiline comment?
+\\"
+
+let var = null;

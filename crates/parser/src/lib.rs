@@ -4,12 +4,12 @@ use lexer::Lexer;
 
 pub struct ParseTree;
 
-pub struct Parser<'p> {
-    token_generator: Lexer<'p>,
+pub struct Parser {
+    token_generator: Lexer,
 }
 
-impl<'p> Parser<'p> {
-    pub fn new(token_generator: Lexer<'p>) -> Self {
+impl Parser {
+    pub fn new(token_generator: Lexer) -> Self {
         Self { token_generator }
     }
 }

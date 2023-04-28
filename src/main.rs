@@ -1,43 +1,52 @@
+use char_reader::ReadChars;
 use lexer::Lexer;
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Write},
+    io::{Cursor, Write},
 };
 
 fn read_file(path: &str) -> std::io::Result<String> {
     let mut buffer = String::new();
-    let file_reader = BufReader::new(File::open(path)?);
+    let reader = ReadChars::from(File::open(path)?);
 
-    file_reader.lines().try_for_each(|line| match line {
-        Err(e) => Err(e),
-        Ok(line) => {
-            let lxr = Lexer::new(&line);
-            lxr.for_each(|t| println!("{:?}", t.unwrap()));
-            buffer.push_str(&(line + "\n"));
-            Ok(())
-        }
-    })?;
+    for x in reader {
+        buffer.push(x?);
+    }
+
+    let reader = ReadChars::from(File::open(path)?);
+    let lexer = Lexer::new(reader.map(|r| r.unwrap()));
+    for token in lexer {
+        println!("{:?}", token);
+    }
 
     Ok(buffer)
 }
 
 fn read_prompt() -> std::io::Result<()> {
+    let mut line_counter = 0_usize;
+    let mut buf = String::new();
+
     println!();
 
     loop {
-        print!("rush> ");
+        buf.clear();
+        line_counter += 1;
+
+        print!("rush:[{:0>3}]> ", line_counter);
         std::io::stdout().flush()?;
 
-        let mut buf = String::new();
-        let bytes = std::io::stdin().read_line(&mut buf)?;
+        if std::io::stdin().read_line(&mut buf)? == 0 {
+            println!("^D");
+            break;
+        }
 
         if buf.trim() == "exit" {
             break;
         }
 
-        let lxr = Lexer::new(&buf);
-
-        lxr.for_each(|c| println!("{:3}: {:?}", bytes, c));
+        for ch in lexer::Lexer::new(ReadChars::from(Cursor::new(buf.clone())).map(|r| r.unwrap())) {
+            println!("{:?}", ch);
+        }
     }
 
     Ok(())
@@ -52,5 +61,6 @@ fn main() -> anyhow::Result<()> {
         Some(path) => println!("{}", read_file(&path)?),
         None => read_prompt()?,
     }
+
     Ok(())
 }

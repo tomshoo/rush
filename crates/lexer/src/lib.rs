@@ -1,3 +1,5 @@
+use std::iter::Peekable;
+
 use error::IdError;
 use error::LexerError;
 use token::{Kind, LiteralKind, Token, TOKENS};
@@ -49,20 +51,20 @@ impl Tracker {
 /// assert_eq!(lxr.next(), Some(Ok(id)));
 /// assert_eq!(lxr.next(), None);
 /// ```
-pub struct Lexer<'c> {
+pub struct Lexer {
     state: Tracker,
-    source: std::iter::Peekable<std::str::Chars<'c>>,
+    source: Peekable<Box<dyn Iterator<Item = char>>>,
 }
 
-impl<'c> Lexer<'c> {
+impl Lexer {
     /// Generates a "source" as `Peekable<Chars>` from the given input string slice,
     /// and holds it with the lifetime of the string slice.
     ///
     /// The struct will consume the source to generate the token objects.
-    pub fn new(stream: &'c str) -> Self {
+    pub fn new(stream: impl Iterator<Item = char> + 'static) -> Self {
         Self {
             state: Tracker::new(),
-            source: stream.chars().peekable(),
+            source: (Box::new(stream) as Box<dyn Iterator<Item = char>>).peekable(),
         }
     }
 
@@ -150,7 +152,7 @@ impl<'c> Lexer<'c> {
     }
 }
 
-impl Iterator for Lexer<'_> {
+impl Iterator for Lexer {
     type Item = Result<Token, error::LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {
