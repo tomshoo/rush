@@ -51,17 +51,17 @@ impl Tracker {
 /// assert_eq!(lxr.next(), Some(Ok(id)));
 /// assert_eq!(lxr.next(), None);
 /// ```
-pub struct Lexer {
+pub struct Lexer<'c> {
     state: Tracker,
-    source: Peekable<Box<dyn Iterator<Item = char>>>,
+    source: Peekable<Box<dyn Iterator<Item = char> + 'c>>,
 }
 
-impl Lexer {
+impl<'c> Lexer<'c> {
     /// Generates a "source" as `Peekable<Chars>` from the given input string slice,
     /// and holds it with the lifetime of the string slice.
     ///
     /// The struct will consume the source to generate the token objects.
-    pub fn new(stream: impl Iterator<Item = char> + 'static) -> Self {
+    pub fn new(stream: impl Iterator<Item = char> + 'c) -> Self {
         Self {
             state: Tracker::new(),
             source: (Box::new(stream) as Box<dyn Iterator<Item = char>>).peekable(),
@@ -152,7 +152,7 @@ impl Lexer {
     }
 }
 
-impl Iterator for Lexer {
+impl Iterator for Lexer<'_> {
     type Item = Result<Token, error::LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {

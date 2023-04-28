@@ -1,9 +1,6 @@
 use char_reader::ReadChars;
 use lexer::Lexer;
-use std::{
-    fs::File,
-    io::{Cursor, Write},
-};
+use std::{fs::File, io::Write};
 
 fn read_file(path: &str) -> std::io::Result<String> {
     let mut buffer = String::new();
@@ -44,8 +41,8 @@ fn read_prompt() -> std::io::Result<()> {
             break;
         }
 
-        for ch in lexer::Lexer::new(ReadChars::from(Cursor::new(buf.clone())).map(|r| r.unwrap())) {
-            println!("{:?}", ch);
+        for x in Lexer::new(buf.clone().chars()) {
+            println!("{:?}", x);
         }
     }
 
