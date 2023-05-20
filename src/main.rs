@@ -11,7 +11,7 @@ fn read_file(path: &str) -> std::io::Result<String> {
     }
 
     let reader = ReadChars::from(File::open(path)?);
-    let lexer = Lexer::new(reader.map(|r| r.unwrap()));
+    let lexer = Lexer::new(Box::new(reader.map(|r| r.unwrap())));
     for token in lexer {
         println!("{:?}", token);
     }
@@ -41,7 +41,7 @@ fn read_prompt() -> std::io::Result<()> {
             break;
         }
 
-        for x in Lexer::new(buf.clone().chars()) {
+        for x in Lexer::new(Box::new(buf.as_str().chars())) {
             println!("{:?}", x);
         }
     }

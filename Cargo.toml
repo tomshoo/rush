@@ -13,15 +13,15 @@ lto = "fat"
 
 [workspace]
 members = [
-    "crates/lexer",
-    "crates/parser",
-    "crates/char_reader"
+    "lexer",
+    "parser",
+    "char_reader"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = { version = "1.0.69", features = ["backtrace"] }
-lexer  = { path = "./crates/lexer" }
-parser = { path = "./crates/parser" }
-char_reader = { path = "crates/char_reader" }
+lexer  = { path = "lexer" }
+parser = { path = "parser" }
+char_reader = { path = "char_reader" }

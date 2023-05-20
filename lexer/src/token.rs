@@ -314,6 +314,11 @@ impl TryFrom<String> for Token {
                 value,
                 kind: Kind::Literal(LiteralKind::Number),
             })
+        } else if value.parse::<f64>().is_ok() {
+            Ok(Self {
+                value,
+                kind: Kind::Literal(LiteralKind::Float),
+            })
         } else {
             Err(IdError::UnidentifiedToken(value))
         }
@@ -324,8 +329,7 @@ impl TryFrom<&str> for Token {
     type Error = IdError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let value = value.to_string();
-        Self::try_from(value)
+        Self::try_from(value.to_owned())
     }
 }
 
