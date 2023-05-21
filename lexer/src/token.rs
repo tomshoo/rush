@@ -1,104 +1,85 @@
+use std::{fmt::Display, str::FromStr};
+
 use crate::error::IdError;
 use phf::{phf_map, Map};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Kind {
+#[derive(Debug, Clone)]
+pub enum Token {
     Operator(Operator),
     Delimitter(Delimitter),
     Literal(LiteralKind),
     Keyword(Keyword),
-    Identifier,
+    Identifier(String),
 }
 
-impl Kind {
-    /// Returns `true` if the kind is [`Operator`].
-    ///
-    /// [`Operator`]: Kind::Operator
-    #[must_use]
-    pub fn is_operator(&self) -> bool {
-        matches!(self, Self::Operator(..))
-    }
-
-    /// Returns `true` if the kind is [`Delimitter`].
-    ///
-    /// [`Delimitter`]: Kind::Delimitter
-    #[must_use]
-    pub fn is_delimitter(&self) -> bool {
-        matches!(self, Self::Delimitter(..))
-    }
-
-    /// Returns `true` if the kind is [`Keyword`].
-    ///
-    /// [`Keyword`]: Kind::Keyword
-    #[must_use]
-    pub fn is_keyword(&self) -> bool {
-        matches!(self, Self::Keyword(..))
-    }
-
-    /// Returns `true` if the kind is [`Literal`].
-    ///
-    /// [`Literal`]: Kind::Literal
-    #[must_use]
-    pub fn is_literal(&self) -> bool {
-        matches!(self, Self::Literal(..))
-    }
-
-    /// Returns `true` if the kind is [`Identifier`].
-    ///
-    /// [`Identifier`]: Kind::Identifier
-    #[must_use]
-    pub fn is_identifier(&self) -> bool {
-        matches!(self, Self::Identifier)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Operator {
-    // Arithmetic operators
+    Bitwise(BitwiseOperator),
+    Arithmetic(ArithmeticOperator),
+
+    Relational(RelationalOperator),
+    Conditional(ConditionalOperator),
+
+    Range(RangeOperator),
+    Misc(MiscOperator),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ArithmeticOperator {
+    Divide,
+    Multiply,
     Plus,
     Minus,
     IncrAssign,
     DecrAssign,
-    Multiply,
-    Divide,
+}
 
-    // Bitwise operators
-    Xor,
-    XorAssign,
-    BitWiseAnd,
-    BitWiseAndAssign,
-    BitWiseOr,
-    BitWiseOrAssign,
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum BitwiseOperator {
+    BitWiseNot,
     LeftShift,
     RightShift,
+    BitWiseAnd,
+    BitWiseOr,
+    Xor,
+    BitWiseAndAssign,
+    BitWiseOrAssign,
+    XorAssign,
+}
 
-    // Conditional operators
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ConditionalOperator {
     And,
     Or,
     Not,
+}
 
-    // Relational operators
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RelationalOperator {
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
     Equal,
     NotEqual,
+}
 
-    // Misc operators
-    Assign,
-    FatArrow,
-    ThinArrow,
-    ScopeResolution,
-
-    // Range operators
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RangeOperator {
     InclusiveRange,
     ExclusiveRange,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MiscOperator {
+    Assign,
+    FatArrow,
+    ThinArrow,
+    ScopeResolution,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Delimitter {
-    Tilde,
     BackTick,
     At,
     Pound,
@@ -117,7 +98,7 @@ pub enum Delimitter {
     Question,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Keyword {
     For,
     While,
@@ -131,218 +112,115 @@ pub enum Keyword {
     Enum,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum LiteralKind {
-    HexChar,
-    ByteChar,
-    Char,
-    String,
-    Number,
-    Float,
-    BooleanTrue,
-    BooleanFalse,
+    Char(char),
+    String(String),
+    Number(isize),
+    Float(f64),
+    Boolean(bool),
+    Nil,
 }
 
-impl LiteralKind {
-    /// Returns `true` if the literal kind is [`HexChar`].
-    ///
-    /// [`HexChar`]: LiteralKind::HexChar
-    #[must_use]
-    pub fn is_hex_char(&self) -> bool {
-        matches!(self, Self::HexChar)
-    }
+pub(crate) const TOKENS: Map<&'static str, Token> = phf_map! {
+    "`"  => Token::Delimitter(Delimitter::BackTick),
+    "@"  => Token::Delimitter(Delimitter::At),
+    "#"  => Token::Delimitter(Delimitter::Pound),
+    "$"  => Token::Delimitter(Delimitter::Dollar),
+    "("  => Token::Delimitter(Delimitter::LParen),
+    ")"  => Token::Delimitter(Delimitter::RParen),
+    "["  => Token::Delimitter(Delimitter::LSquare),
+    "]"  => Token::Delimitter(Delimitter::RSquare),
+    "{"  => Token::Delimitter(Delimitter::LCurly),
+    "}"  => Token::Delimitter(Delimitter::RCurly),
+    "\\" => Token::Delimitter(Delimitter::BackSlash),
+    ";"  => Token::Delimitter(Delimitter::SemiColon),
+    ":"  => Token::Delimitter(Delimitter::Colon),
+    ","  => Token::Delimitter(Delimitter::Comma),
+    "."  => Token::Delimitter(Delimitter::Dot),
+    "?"  => Token::Delimitter(Delimitter::Question),
 
-    /// Returns `true` if the literal kind is [`ByteChar`].
-    ///
-    /// [`ByteChar`]: LiteralKind::ByteChar
-    #[must_use]
-    pub fn is_byte_char(&self) -> bool {
-        matches!(self, Self::ByteChar)
-    }
+    "for"    => Token::Keyword(Keyword::For),
+    "while"  => Token::Keyword(Keyword::While),
+    "if"     => Token::Keyword(Keyword::If),
+    "else"   => Token::Keyword(Keyword::Else),
+    "const"  => Token::Keyword(Keyword::Const),
+    "let"    => Token::Keyword(Keyword::Let),
+    "break"  => Token::Keyword(Keyword::Break),
+    "return" => Token::Keyword(Keyword::Return),
+    "struct" => Token::Keyword(Keyword::Struct),
+    "enum"   => Token::Keyword(Keyword::Enum),
 
-    /// Returns `true` if the literal kind is [`Char`].
-    ///
-    /// [`Char`]: LiteralKind::Char
-    #[must_use]
-    pub fn is_char(&self) -> bool {
-        matches!(self, Self::Char)
-    }
+    "nil" => Token::Literal(LiteralKind::Nil),
 
-    /// Returns `true` if the literal kind is [`String`].
-    ///
-    /// [`String`]: LiteralKind::String
-    #[must_use]
-    pub fn is_string(&self) -> bool {
-        matches!(self, Self::String)
-    }
+    "+"  => Token::Operator(Operator::Arithmetic(ArithmeticOperator::Plus)),
+    "-"  => Token::Operator(Operator::Arithmetic(ArithmeticOperator::Minus)),
+    "+=" => Token::Operator(Operator::Arithmetic(ArithmeticOperator::IncrAssign)),
+    "-=" => Token::Operator(Operator::Arithmetic(ArithmeticOperator::DecrAssign)),
+    "*"  => Token::Operator(Operator::Arithmetic(ArithmeticOperator::Multiply)),
+    "/"  => Token::Operator(Operator::Arithmetic(ArithmeticOperator::Divide)),
 
-    /// Returns `true` if the literal kind is [`Number`].
-    ///
-    /// [`Number`]: LiteralKind::Number
-    #[must_use]
-    pub fn is_number(&self) -> bool {
-        matches!(self, Self::Number)
-    }
+    "~"  => Token::Operator(Operator::Bitwise(BitwiseOperator::BitWiseNot)),
+    "^"  => Token::Operator(Operator::Bitwise(BitwiseOperator::Xor)),
+    "^=" => Token::Operator(Operator::Bitwise(BitwiseOperator::XorAssign)),
+    "&"  => Token::Operator(Operator::Bitwise(BitwiseOperator::BitWiseAnd)),
+    "&=" => Token::Operator(Operator::Bitwise(BitwiseOperator::BitWiseAndAssign)),
+    "|"  => Token::Operator(Operator::Bitwise(BitwiseOperator::BitWiseOr)),
+    "|=" => Token::Operator(Operator::Bitwise(BitwiseOperator::BitWiseOrAssign)),
+    "<<" => Token::Operator(Operator::Bitwise(BitwiseOperator::LeftShift)),
+    ">>" => Token::Operator(Operator::Bitwise(BitwiseOperator::RightShift)),
 
-    /// Returns `true` if the literal kind is [`Float`].
-    ///
-    /// [`Float`]: LiteralKind::Float
-    #[must_use]
-    pub fn is_float(&self) -> bool {
-        matches!(self, Self::Float)
-    }
+    "&&" => Token::Operator(Operator::Conditional(ConditionalOperator::And)),
+    "||" => Token::Operator(Operator::Conditional(ConditionalOperator::Or)),
+    "!"  => Token::Operator(Operator::Conditional(ConditionalOperator::Not)),
 
-    /// Returns `true` if the literal kind is [`BooleanTrue`].
-    ///
-    /// [`BooleanTrue`]: LiteralKind::BooleanTrue
-    #[must_use]
-    pub fn is_boolean_true(&self) -> bool {
-        matches!(self, Self::BooleanTrue)
-    }
+    ">"  => Token::Operator(Operator::Relational(RelationalOperator::GreaterThan)),
+    ">=" => Token::Operator(Operator::Relational(RelationalOperator::GreaterThanOrEqual)),
+    "<"  => Token::Operator(Operator::Relational(RelationalOperator::LessThan)),
+    "<=" => Token::Operator(Operator::Relational(RelationalOperator::LessThanOrEqual)),
+    "==" => Token::Operator(Operator::Relational(RelationalOperator::Equal)),
+    "!=" => Token::Operator(Operator::Relational(RelationalOperator::NotEqual)),
 
-    /// Returns `true` if the literal kind is [`BooleanFalse`].
-    ///
-    /// [`BooleanFalse`]: LiteralKind::BooleanFalse
-    #[must_use]
-    pub fn is_boolean_false(&self) -> bool {
-        matches!(self, Self::BooleanFalse)
-    }
-}
+    "="  => Token::Operator(Operator::Misc(MiscOperator::Assign)),
+    "=>" => Token::Operator(Operator::Misc(MiscOperator::FatArrow)),
+    "->" => Token::Operator(Operator::Misc(MiscOperator::ThinArrow)),
+    "::" => Token::Operator(Operator::Misc(MiscOperator::ScopeResolution)),
 
-pub(crate) const TOKENS: Map<&'static str, Kind> = phf_map! {
-    "~"  => Kind::Delimitter(Delimitter::Tilde),
-    "`"  => Kind::Delimitter(Delimitter::BackTick),
-    "@"  => Kind::Delimitter(Delimitter::At),
-    "#"  => Kind::Delimitter(Delimitter::Pound),
-    "$"  => Kind::Delimitter(Delimitter::Dollar),
-    "("  => Kind::Delimitter(Delimitter::LParen),
-    ")"  => Kind::Delimitter(Delimitter::RParen),
-    "["  => Kind::Delimitter(Delimitter::LSquare),
-    "]"  => Kind::Delimitter(Delimitter::RSquare),
-    "{"  => Kind::Delimitter(Delimitter::LCurly),
-    "}"  => Kind::Delimitter(Delimitter::RCurly),
-    "\\" => Kind::Delimitter(Delimitter::BackSlash),
-    ";"  => Kind::Delimitter(Delimitter::SemiColon),
-    ":"  => Kind::Delimitter(Delimitter::Colon),
-    ","  => Kind::Delimitter(Delimitter::Comma),
-    "."  => Kind::Delimitter(Delimitter::Dot),
-    "?"  => Kind::Delimitter(Delimitter::Question),
+    "..=" => Token::Operator(Operator::Range(RangeOperator::InclusiveRange)),
+    ".."  => Token::Operator(Operator::Range(RangeOperator::ExclusiveRange)),
 
-    "for"    => Kind::Keyword(Keyword::For),
-    "while"  => Kind::Keyword(Keyword::While),
-    "if"     => Kind::Keyword(Keyword::If),
-    "else"   => Kind::Keyword(Keyword::Else),
-    "const"  => Kind::Keyword(Keyword::Const),
-    "let"    => Kind::Keyword(Keyword::Let),
-    "break"  => Kind::Keyword(Keyword::Break),
-    "return" => Kind::Keyword(Keyword::Return),
-    "struct" => Kind::Keyword(Keyword::Struct),
-    "enum"   => Kind::Keyword(Keyword::Enum),
-
-    "+"  => Kind::Operator(Operator::Plus),
-    "-"  => Kind::Operator(Operator::Minus),
-    "+=" => Kind::Operator(Operator::IncrAssign),
-    "-=" => Kind::Operator(Operator::DecrAssign),
-    "*"  => Kind::Operator(Operator::Multiply),
-    "/"  => Kind::Operator(Operator::Divide),
-
-    "^"  => Kind::Operator(Operator::Xor),
-    "^=" => Kind::Operator(Operator::XorAssign),
-    "&"  => Kind::Operator(Operator::BitWiseAnd),
-    "&=" => Kind::Operator(Operator::BitWiseAndAssign),
-    "|"  => Kind::Operator(Operator::BitWiseOr),
-    "|=" => Kind::Operator(Operator::BitWiseOrAssign),
-    "<<" => Kind::Operator(Operator::LeftShift),
-    ">>" => Kind::Operator(Operator::RightShift),
-
-    "&&" => Kind::Operator(Operator::And),
-    "||" => Kind::Operator(Operator::Or),
-    "!"  => Kind::Operator(Operator::Not),
-
-    ">"  => Kind::Operator(Operator::GreaterThan),
-    ">=" => Kind::Operator(Operator::GreaterThanOrEqual),
-    "<"  => Kind::Operator(Operator::LessThan),
-    "<=" => Kind::Operator(Operator::LessThanOrEqual),
-    "==" => Kind::Operator(Operator::Equal),
-    "!=" => Kind::Operator(Operator::NotEqual),
-
-    "="  => Kind::Operator(Operator::Assign),
-    "=>" => Kind::Operator(Operator::FatArrow),
-    "->" => Kind::Operator(Operator::ThinArrow),
-    "::" => Kind::Operator(Operator::ScopeResolution),
-
-    "..=" => Kind::Operator(Operator::InclusiveRange),
-    ".."  => Kind::Operator(Operator::ExclusiveRange),
-
-    "true"  => Kind::Literal(LiteralKind::BooleanTrue),
-    "false" => Kind::Literal(LiteralKind::BooleanFalse),
+    "true"  => Token::Literal(LiteralKind::Boolean(true)),
+    "false" => Token::Literal(LiteralKind::Boolean(false)),
 };
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Token {
-    value: String,
-    kind: Kind,
-}
 
 pub(crate) fn is_valid_identifier(string: &str) -> bool {
     string
         .char_indices()
-        .filter(|(i, c)| {
-            (if *i == 0 {
-                c.is_alphabetic()
-            } else {
-                c.is_alphanumeric()
-            }) || *c == '_'
-        })
+        .filter(|(i, c)| (if *i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) || *c == '_')
         .count()
         == string.len()
 }
 
-impl TryFrom<String> for Token {
-    type Error = IdError;
+impl FromStr for Token {
+    type Err = IdError;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        if let Some(kind) = TOKENS.get(&value) {
-            Ok(Self { value, kind: *kind })
-        } else if is_valid_identifier(&value) {
-            Ok(Self {
-                value,
-                kind: Kind::Identifier,
-            })
-        } else if value.parse::<usize>().is_ok() {
-            Ok(Self {
-                value,
-                kind: Kind::Literal(LiteralKind::Number),
-            })
-        } else if value.parse::<f64>().is_ok() {
-            Ok(Self {
-                value,
-                kind: Kind::Literal(LiteralKind::Float),
-            })
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some(kind) = TOKENS.get(s) {
+            Ok(kind.clone())
+        } else if is_valid_identifier(s) {
+            Ok(Self::Identifier(s.to_owned()))
+        } else if let Ok(num) = s.parse::<isize>() {
+            Ok(Self::Literal(LiteralKind::Number(num)))
+        } else if let Ok(f) = s.parse::<f64>() {
+            Ok(Self::Literal(LiteralKind::Float(f)))
         } else {
-            Err(IdError::UnidentifiedToken(value))
+            Err(IdError::UnidentifiedToken(s.to_owned()))
         }
     }
 }
 
-impl TryFrom<&str> for Token {
-    type Error = IdError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::try_from(value.to_owned())
-    }
-}
-
-impl Token {
-    pub fn new(value: String, kind: Kind) -> Self {
-        Self { value, kind }
-    }
-
-    pub fn kind(&self) -> Kind {
-        self.kind
-    }
-
-    pub fn value(&self) -> &str {
-        &self.value
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
     }
 }

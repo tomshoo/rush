@@ -2,10 +2,10 @@ use std::iter::Peekable;
 
 use error::IdError;
 use error::LexerError;
-use strstate::StringState;
-use token::{Kind, LiteralKind, Token};
+use state::StringState;
+use token::{Token, LiteralKind};
 
-mod strstate;
+mod state;
 pub mod error;
 pub mod token;
 
@@ -41,17 +41,18 @@ impl Tracker {
 /// Example
 /// ```
 /// use lexer::Lexer;
-/// use lexer::token::Kind;
 /// use lexer::token::Keyword;
 /// use lexer::token::Token;
-/// let mut lxr = Lexer::new("let ident");
 ///
-/// let kw = Token::new(String::from("let"), Kind::Keyword(Keyword::Let));
-/// let id = Token::new(String::from("ident"), Kind::Identifier);
+/// let string  = String::from("let ident");
+/// let mut lxr = Lexer::new(Box::new(string.chars()));
 ///
-/// assert_eq!(lxr.next(), Some(Ok(kw)));
-/// assert_eq!(lxr.next(), Some(Ok(id)));
-/// assert_eq!(lxr.next(), None);
+/// let kw = Token::Keyword(Keyword::Let);
+/// let id = Token::Identifier(String::from("ident"));
+///
+/// assert!(matches!(lxr.next(), Some(Ok(kw))));
+/// assert!(matches!(lxr.next(), Some(Ok(id))));
+/// assert!(matches!(lxr.next(), None));
 /// ```
 #[allow(dead_code)]
 pub struct Lexer<'c> {
@@ -96,10 +97,17 @@ impl Iterator for Lexer<'_> {
                 #[cfg(windows)]
                 if ch == '\r' { self.source.next(); }
 
+                let mut tracker = self.tracker;
+                tracker.add_col();
+
                 self.tracker.add_row();
                 self.tracker.col = 0;
 
-                if self.qstate.is_comment() || self.qstate.is_squote() {
+                if self.qstate.is_squote() {
+                    return Some(Err(LexerError::new(IdError::InvalidLiteral(buffer.clone()), tracker)));
+                }
+
+                if self.qstate.is_comment() {
                     self.qstate = StringState::default();
                 }
 
@@ -126,12 +134,12 @@ impl Iterator for Lexer<'_> {
                             continue;
                         }
 
-                        let result = Token::try_from(buffer.as_str());
-                        return Some(result.map_err(|e| LexerError::new(e, self.tracker)));
+                        let result = buffer.as_str().parse().map_err(|e| LexerError::new(e, self.tracker));
+                        return Some(result);
                     }
 
                     buffer.push(ch);
-                    let maybe_token = Token::try_from(buffer.as_str()).map_err(|e| LexerError::new(e, self.tracker));
+                    let maybe_token = buffer.as_str().parse().map_err(|e| LexerError::new(e, self.tracker));
 
                     if self.source.peek().is_none() {
                         return Some(maybe_token);
@@ -140,14 +148,14 @@ impl Iterator for Lexer<'_> {
                     if maybe_token.is_err() {
                         self.some_char = buffer.pop();
 
-                        let result = Token::try_from(buffer.as_str()).map_err(|e| LexerError::new(e, self.tracker));
+                        let result = buffer.as_str().parse().map_err(|e| LexerError::new(e, self.tracker));
                         return Some(result);
                     }
                 },
                 StringState::SQuote if ch == '\'' => {
                     self.qstate = StringState::default();
                     let result = match get_char_type(&buffer) {
-                        Some(kind) => Ok(Token::new(buffer.clone(), Kind::Literal(kind))),
+                        Some(kind) => Ok(Token::Literal(kind)),
                         None       => Err(LexerError::new(IdError::InvalidLiteral(buffer.clone()), self.tracker)),
                     };
 
@@ -155,7 +163,7 @@ impl Iterator for Lexer<'_> {
                 }
                 StringState::DQuote if ch == '\"' => {
                     self.qstate = StringState::default();
-                    return Some(Ok(Token::new(buffer.clone(), Kind::Literal(LiteralKind::String))));
+                    return Some(Ok(Token::Literal(LiteralKind::String(buffer.clone()))));
                 }
                 StringState::DQuote | StringState::SQuote => {
                     buffer.push(ch);
@@ -166,7 +174,7 @@ impl Iterator for Lexer<'_> {
         }
 
         (! buffer.is_empty()).then(|| {
-            let result = Token::try_from(buffer);
+            let result = buffer.parse();
             result.map_err(|e| LexerError::new(e, self.tracker))
         })
     }
@@ -174,15 +182,14 @@ impl Iterator for Lexer<'_> {
 
 fn get_char_type(string: &str) -> Option<LiteralKind> {
     if let Some(string) = string.strip_prefix("\\b") {
-        string
-            .parse::<u8>()
-            .is_ok()
-            .then_some(LiteralKind::ByteChar)
+        string.parse::<u8>()
+            .map(|c| LiteralKind::Char(c as char))
+            .ok()
     } else if let Some(string) = string.strip_prefix("\\x") {
         u8::from_str_radix(string, 16)
-            .is_ok()
-            .then_some(LiteralKind::HexChar)
+            .map(|c| LiteralKind::Char(c as char))
+            .ok()
     } else {
-        (string.len() == 1).then_some(LiteralKind::Char)
+        (string.len() == 1) .then_some(LiteralKind::Char(string.chars().next().unwrap()))
     }
 }
