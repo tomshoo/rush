@@ -1,27 +1,21 @@
 pub mod error;
 
 use crate::error::Error;
-use std::io::Read;
+use std::io::{BufRead, Read};
 
 const UTF8_MAX_SIZE: usize = 6;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone)]
-pub struct ReadChars<R>
-where
-    R: Read,
-{
+pub struct ReadChars<R: Read> {
     reader: R,
     bytes_read: usize,
     buffer: [u8; UTF8_MAX_SIZE],
 }
 
 #[allow(dead_code)]
-impl<R> ReadChars<R>
-where
-    R: Read,
-{
+impl<R: Read> ReadChars<R> {
     pub fn bytes_read(&self) -> usize {
         self.bytes_read
     }
@@ -31,10 +25,7 @@ where
     }
 }
 
-impl<R> From<R> for ReadChars<R>
-where
-    R: Read,
-{
+impl<R: Read> From<R> for ReadChars<R> {
     fn from(reader: R) -> Self {
         Self {
             reader,
@@ -44,10 +35,7 @@ where
     }
 }
 
-impl<R> ReadChars<R>
-where
-    R: Read,
-{
+impl<R: Read> ReadChars<R> {
     fn next_char(&mut self) -> Option<<Self as Iterator>::Item> {
         let mut buffer = [0u8; UTF8_MAX_SIZE];
         let mut offset = 0;
@@ -71,14 +59,29 @@ where
     }
 }
 
-impl<R> Iterator for ReadChars<R>
-where
-    R: Read,
-{
+impl<R: Read> Iterator for ReadChars<R> {
     type Item = Result<char>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.clear_buffer();
         self.next_char()
+    }
+}
+
+impl<R: Read> Read for ReadChars<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.bytes_read = buf.len();
+        self.reader.read(buf)
+    }
+}
+
+impl<R: BufRead> BufRead for ReadChars<R> {
+    fn consume(&mut self, amt: usize) {
+        self.bytes_read = amt;
+        self.reader.consume(amt)
+    }
+
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        self.reader.fill_buf()
     }
 }
