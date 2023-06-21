@@ -1,17 +1,15 @@
 use crate::Tracker;
-use std::fmt;
+use std::{fmt, rc::Rc};
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Clone)]
 pub enum IdError {
-    #[error("Invalid character '{0}'")]
-    InvalidCharacter(char),
-
     #[error("Could not identify token '{0}'")]
-    UnidentifiedToken(String),
+    UnidentifiedToken(Rc<str>),
 
     #[error("Given literal is invalid: {0}")]
-    InvalidLiteral(String),
+    InvalidLiteral(Rc<str>),
 }
 
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -24,7 +22,15 @@ impl fmt::Display for LexerError {
 }
 
 impl LexerError {
-    pub(crate) fn new(err: IdError, at: Tracker) -> Self {
+    pub fn new(err: IdError, at: Tracker) -> Self {
         Self(err, at)
+    }
+
+    pub fn at(&self) -> Tracker {
+        self.1
+    }
+
+    pub fn error(&self) -> IdError {
+        self.0.clone()
     }
 }

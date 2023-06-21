@@ -1,36 +1,14 @@
 use std::iter::Peekable;
 
+use core::tracker::Tracker;
 use error::IdError;
 use error::LexerError;
 use state::StringState;
-use token::{Token, LiteralKind};
+use token::{Literal, Token};
 
-mod state;
 pub mod error;
+mod state;
 pub mod token;
-
-/// Provides a tracker object to better point where an error has occured,
-/// Cannot be changed outside of the `lexer` crate and is for read only
-/// purposes outside.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Tracker {
-    row: usize,
-    col: usize,
-}
-
-impl Tracker {
-    pub(crate) fn add_row(&mut self) {
-        self.row += 1;
-    }
-
-    pub(crate) fn add_col(&mut self) {
-        self.col += 1;
-    }
-
-    pub(crate) fn new() -> Self {
-        Self { row: 0, col: 0 }
-    }
-}
 
 /// Lexer class lazily generates token objects to be later used by a parser,
 /// It takes a source string and lives as long as the string slice exists
@@ -48,7 +26,7 @@ impl Tracker {
 /// let mut lxr = Lexer::new(Box::new(string.chars()));
 ///
 /// let kw = Token::Keyword(Keyword::Let);
-/// let id = Token::Identifier(String::from("ident"));
+/// let id = Token::Identifier("ident".parse().unwrap());
 ///
 /// assert!(matches!(lxr.next(), Some(Ok(kw))));
 /// assert!(matches!(lxr.next(), Some(Ok(id))));
@@ -58,8 +36,8 @@ impl Tracker {
 pub struct Lexer<'c> {
     some_char: Option<char>,
     tracker: Tracker,
-    qstate:  StringState,
-    source:  Peekable<Box<dyn Iterator<Item = char> + 'c>>,
+    qstate: StringState,
+    source: Peekable<Box<dyn Iterator<Item = char> + 'c>>,
 }
 
 #[allow(dead_code)]
@@ -91,41 +69,63 @@ impl Iterator for Lexer<'_> {
 
         while let Some(ch) = self.source.next() {
             if cfg!(windows)
-                .then(|| (ch == '\r' && self.source.peek().filter(|c| **c == '\n').is_some()) || ch == '\n')
+                .then(|| {
+                    (ch == '\r' && self.source.peek().filter(|c| **c == '\n').is_some())
+                        || ch == '\n'
+                })
                 .unwrap_or_else(|| ch == '\n')
             {
                 #[cfg(windows)]
-                if ch == '\r' { self.source.next(); }
+                if ch == '\r' {
+                    self.source.next();
+                }
 
                 let mut tracker = self.tracker;
                 tracker.add_col();
 
                 self.tracker.add_row();
-                self.tracker.col = 0;
+                self.tracker.set_col(0);
 
                 if self.qstate.is_squote() {
-                    return Some(Err(LexerError::new(IdError::InvalidLiteral(buffer.clone()), tracker)));
+                    return Some(Err(LexerError::new(
+                        IdError::InvalidLiteral(buffer.clone().as_str().into()),
+                        tracker,
+                    )));
                 }
 
                 if self.qstate.is_comment() {
                     self.qstate = StringState::default();
                 }
 
-                if buffer.is_empty()         { continue; }
-                if ! self.qstate.is_dquote() { break; }
+                if buffer.is_empty() {
+                    continue;
+                }
+                if !self.qstate.is_dquote() {
+                    break;
+                }
             }
 
-            if self.qstate.is_normal() && ch == '#' { self.qstate = StringState::Comment; }
+            if self.qstate.is_normal() && ch == '#' {
+                self.qstate = StringState::Comment;
+            }
 
             match self.qstate {
-                StringState::Comment => { continue; },
-                StringState::Normal  => {
-                    self.qstate = if ch == '\''      { StringState::SQuote }
-                                  else if ch == '\"' { StringState::DQuote }
-                                  else               { self.qstate };
+                StringState::Comment => {
+                    continue;
+                },
+                StringState::Normal => {
+                    self.qstate = if ch == '\'' {
+                        StringState::SQuote
+                    } else if ch == '\"' {
+                        StringState::DQuote
+                    } else {
+                        self.qstate
+                    };
 
-                    if ! self.qstate.is_normal() {
-                        if ! buffer.is_empty() { break; }
+                    if !self.qstate.is_normal() {
+                        if !buffer.is_empty() {
+                            break;
+                        }
                         continue;
                     }
 
@@ -134,12 +134,18 @@ impl Iterator for Lexer<'_> {
                             continue;
                         }
 
-                        let result = buffer.as_str().parse().map_err(|e| LexerError::new(e, self.tracker));
+                        let result = buffer
+                            .as_str()
+                            .parse()
+                            .map_err(|e| LexerError::new(e, self.tracker));
                         return Some(result);
                     }
 
                     buffer.push(ch);
-                    let maybe_token = buffer.as_str().parse().map_err(|e| LexerError::new(e, self.tracker));
+                    let maybe_token = buffer
+                        .as_str()
+                        .parse()
+                        .map_err(|e| LexerError::new(e, self.tracker));
 
                     if self.source.peek().is_none() {
                         return Some(maybe_token);
@@ -148,7 +154,10 @@ impl Iterator for Lexer<'_> {
                     if maybe_token.is_err() {
                         self.some_char = buffer.pop();
 
-                        let result = buffer.as_str().parse().map_err(|e| LexerError::new(e, self.tracker));
+                        let result = buffer
+                            .as_str()
+                            .parse()
+                            .map_err(|e| LexerError::new(e, self.tracker));
                         return Some(result);
                     }
                 },
@@ -156,15 +165,20 @@ impl Iterator for Lexer<'_> {
                     self.qstate = StringState::default();
                     let result = match get_char_type(&buffer) {
                         Some(kind) => Ok(Token::Literal(kind)),
-                        None       => Err(LexerError::new(IdError::InvalidLiteral(buffer.clone()), self.tracker)),
+                        None => Err(LexerError::new(
+                            IdError::InvalidLiteral(buffer.clone().as_str().into()),
+                            self.tracker,
+                        )),
                     };
 
                     return Some(result);
-                }
+                },
                 StringState::DQuote if ch == '\"' => {
                     self.qstate = StringState::default();
-                    return Some(Ok(Token::Literal(LiteralKind::String(buffer.clone()))));
-                }
+                    return Some(Ok(Token::Literal(Literal::String(
+                        buffer.clone().as_str().into(),
+                    ))));
+                },
                 StringState::DQuote | StringState::SQuote => {
                     buffer.push(ch);
                 },
@@ -173,23 +187,21 @@ impl Iterator for Lexer<'_> {
             self.tracker.add_col();
         }
 
-        (! buffer.is_empty()).then(|| {
+        (!buffer.is_empty()).then(|| {
             let result = buffer.parse();
             result.map_err(|e| LexerError::new(e, self.tracker))
         })
     }
 }
 
-fn get_char_type(string: &str) -> Option<LiteralKind> {
+fn get_char_type(string: &str) -> Option<Literal> {
     if let Some(string) = string.strip_prefix("\\b") {
-        string.parse::<u8>()
-            .map(|c| LiteralKind::Char(c as char))
-            .ok()
+        string.parse::<u8>().map(|c| Literal::Char(c as char)).ok()
     } else if let Some(string) = string.strip_prefix("\\x") {
         u8::from_str_radix(string, 16)
-            .map(|c| LiteralKind::Char(c as char))
+            .map(|c| Literal::Char(c as char))
             .ok()
     } else {
-        (string.len() == 1) .then_some(LiteralKind::Char(string.chars().next().unwrap()))
+        (string.len() == 1).then_some(Literal::Char(string.chars().next().unwrap()))
     }
 }

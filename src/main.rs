@@ -1,26 +1,26 @@
 use char_reader::ReadChars;
 use lexer::Lexer;
-use std::{fs::File, io::Write};
+use std::{
+    fs::File,
+    io::{Cursor, IsTerminal, Read, Write},
+};
 
 fn read_file(path: &str) -> std::io::Result<String> {
     let mut buffer = String::new();
-    let reader = ReadChars::from(File::open(path)?);
+    File::open(path)?.read_to_string(&mut buffer)?;
 
-    for x in reader {
-        buffer.push(x?);
-    }
+    let reader = ReadChars::from(Cursor::new(buffer.as_str()));
 
-    let reader = ReadChars::from(File::open(path)?);
-    let lexer = Lexer::new(Box::new(reader.map(|r| r.unwrap())));
-    for token in lexer {
-        println!("{:?}", token);
-    }
+    Lexer::new(Box::new(reader.filter_map(|r| dbg!(r).ok()))).for_each(|x| match x {
+        Ok(token) => println!("{token}"),
+        Err(e) => eprintln!("{e}"),
+    });
 
     Ok(buffer)
 }
 
 fn read_prompt() -> std::io::Result<()> {
-    let mut line_counter = 0_usize;
+    let mut line_counter = 0usize;
     let mut buf = String::new();
 
     println!();
@@ -32,18 +32,15 @@ fn read_prompt() -> std::io::Result<()> {
         print!("rush:[{:0>3}]> ", line_counter);
         std::io::stdout().flush()?;
 
-        if std::io::stdin().read_line(&mut buf)? == 0 {
-            println!("^D");
+        if std::io::stdin().read_line(&mut buf)? == 0 || buf.trim() == "exit" {
+            eprintln!("\nReached end of file, quitting!");
             break;
         }
 
-        if buf.trim() == "exit" {
-            break;
-        }
-
-        for x in Lexer::new(Box::new(buf.as_str().chars())) {
-            println!("{:?}", x);
-        }
+        Lexer::new(Box::new(buf.as_str().chars())).for_each(|x| match x {
+            Ok(token) => println!("{token}"),
+            Err(e) => eprintln!("{e}"),
+        });
     }
 
     Ok(())
@@ -56,7 +53,15 @@ fn main() -> anyhow::Result<()> {
 
     match std::env::args().nth(1) {
         Some(path) => println!("{}", read_file(&path)?),
-        None => read_prompt()?,
+        None if std::io::stdin().is_terminal() => read_prompt()?,
+        None => {
+            let mut string = String::new();
+            std::io::stdin().read_to_string(&mut string)?;
+            Lexer::new(Box::new(string.chars())).for_each(|t| match t {
+                Ok(token) => println!("{token}"),
+                Err(e) => eprintln!("{e}"),
+            });
+        },
     }
 
     Ok(())

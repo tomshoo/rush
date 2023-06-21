@@ -67,6 +67,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "core"
+version = "0.1.0"
+
+[[package]]
 name = "gimli"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -77,6 +81,7 @@ name = "lexer"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "core",
  "phf",
  "thiserror",
 ]
@@ -115,7 +120,9 @@ dependencies = [
 name = "parser"
 version = "0.1.0"
 dependencies = [
+ "core",
  "lexer",
+ "thiserror",
 ]
 
 [[package]]
@@ -199,6 +206,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "char_reader",
+ "core",
  "lexer",
  "parser",
 ]

@@ -1,125 +1,26 @@
-use std::{fmt::Display, str::FromStr};
-
 use crate::error::IdError;
 use phf::{phf_map, Map};
+use std::{fmt::Display, str::FromStr, write};
+
+pub use delimitter::Delimitter;
+pub use identifier::Identifier;
+pub use keyword::Keyword;
+pub use literal::Literal;
+pub use operator::*;
+
+pub mod delimitter;
+pub mod identifier;
+pub mod keyword;
+pub mod literal;
+pub mod operator;
 
 #[derive(Debug, Clone)]
 pub enum Token {
     Operator(Operator),
     Delimitter(Delimitter),
-    Literal(LiteralKind),
+    Literal(Literal),
     Keyword(Keyword),
-    Identifier(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Operator {
-    Bitwise(BitwiseOperator),
-    Arithmetic(ArithmeticOperator),
-
-    Relational(RelationalOperator),
-    Conditional(ConditionalOperator),
-
-    Range(RangeOperator),
-    Misc(MiscOperator),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ArithmeticOperator {
-    Divide,
-    Multiply,
-    Plus,
-    Minus,
-    IncrAssign,
-    DecrAssign,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum BitwiseOperator {
-    BitWiseNot,
-    LeftShift,
-    RightShift,
-    BitWiseAnd,
-    BitWiseOr,
-    Xor,
-    BitWiseAndAssign,
-    BitWiseOrAssign,
-    XorAssign,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum ConditionalOperator {
-    And,
-    Or,
-    Not,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum RelationalOperator {
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual,
-    Equal,
-    NotEqual,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum RangeOperator {
-    InclusiveRange,
-    ExclusiveRange,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum MiscOperator {
-    Assign,
-    FatArrow,
-    ThinArrow,
-    ScopeResolution,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Delimitter {
-    BackTick,
-    At,
-    Pound,
-    Dollar,
-    LParen,
-    RParen,
-    LCurly,
-    RCurly,
-    LSquare,
-    RSquare,
-    BackSlash,
-    Colon,
-    SemiColon,
-    Comma,
-    Dot,
-    Question,
-}
-
-#[derive(Debug, Clone)]
-pub enum Keyword {
-    For,
-    While,
-    If,
-    Else,
-    Const,
-    Let,
-    Break,
-    Return,
-    Struct,
-    Enum,
-}
-
-#[derive(Debug, Clone)]
-pub enum LiteralKind {
-    Char(char),
-    String(String),
-    Number(isize),
-    Float(f64),
-    Boolean(bool),
-    Nil,
+    Identifier(Identifier),
 }
 
 pub(crate) const TOKENS: Map<&'static str, Token> = phf_map! {
@@ -138,7 +39,6 @@ pub(crate) const TOKENS: Map<&'static str, Token> = phf_map! {
     ":"  => Token::Delimitter(Delimitter::Colon),
     ","  => Token::Delimitter(Delimitter::Comma),
     "."  => Token::Delimitter(Delimitter::Dot),
-    "?"  => Token::Delimitter(Delimitter::Question),
 
     "for"    => Token::Keyword(Keyword::For),
     "while"  => Token::Keyword(Keyword::While),
@@ -151,7 +51,7 @@ pub(crate) const TOKENS: Map<&'static str, Token> = phf_map! {
     "struct" => Token::Keyword(Keyword::Struct),
     "enum"   => Token::Keyword(Keyword::Enum),
 
-    "nil" => Token::Literal(LiteralKind::Nil),
+    "nil" => Token::Literal(Literal::Nil),
 
     "+"  => Token::Operator(Operator::Arithmetic(ArithmeticOperator::Plus)),
     "-"  => Token::Operator(Operator::Arithmetic(ArithmeticOperator::Minus)),
@@ -189,17 +89,9 @@ pub(crate) const TOKENS: Map<&'static str, Token> = phf_map! {
     "..=" => Token::Operator(Operator::Range(RangeOperator::InclusiveRange)),
     ".."  => Token::Operator(Operator::Range(RangeOperator::ExclusiveRange)),
 
-    "true"  => Token::Literal(LiteralKind::Boolean(true)),
-    "false" => Token::Literal(LiteralKind::Boolean(false)),
+    "true"  => Token::Literal(Literal::Boolean(true)),
+    "false" => Token::Literal(Literal::Boolean(false)),
 };
-
-pub(crate) fn is_valid_identifier(string: &str) -> bool {
-    string
-        .char_indices()
-        .filter(|(i, c)| (if *i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) || *c == '_')
-        .count()
-        == string.len()
-}
 
 impl FromStr for Token {
     type Err = IdError;
@@ -207,20 +99,26 @@ impl FromStr for Token {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some(kind) = TOKENS.get(s) {
             Ok(kind.clone())
-        } else if is_valid_identifier(s) {
-            Ok(Self::Identifier(s.to_owned()))
+        } else if let Ok(ident) = s.parse() {
+            Ok(Self::Identifier(ident))
         } else if let Ok(num) = s.parse::<isize>() {
-            Ok(Self::Literal(LiteralKind::Number(num)))
+            Ok(Self::Literal(Literal::Number(num)))
         } else if let Ok(f) = s.parse::<f64>() {
-            Ok(Self::Literal(LiteralKind::Float(f)))
+            Ok(Self::Literal(Literal::Float(f)))
         } else {
-            Err(IdError::UnidentifiedToken(s.to_owned()))
+            Err(IdError::UnidentifiedToken(s.into()))
         }
     }
 }
 
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        match self {
+            Self::Identifier(ident) => write!(f, "{}", ident),
+            Self::Literal(lit) => write!(f, "{:?}", lit),
+            Self::Operator(op) => write!(f, "{:?}", op),
+            Self::Keyword(kw) => write!(f, "{:?}", kw),
+            Self::Delimitter(delm) => write!(f, "{:?}", delm),
+        }
     }
 }

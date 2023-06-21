@@ -1,28 +1,28 @@
-{
-  description = "Rush a simple programmable shell written in rust";
+{ description = "Rush a simple programmable shell written in rust";
 
-  inputs = {
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils.url  = "github:numtide/flake-utils";
-    nixpkgs = {
-      url = "github:nixos/nixpkgs/nixos-23.05";
-      follows = "rust-overlay/nixpkgs";
+  inputs =
+    { rust-overlay.url = "github:oxalica/rust-overlay";
+      flake-utils.url  = "github:numtide/flake-utils";
+      nixpkgs = {
+        url = "github:nixos/nixpkgs/nixos-23.05";
+        follows = "rust-overlay/nixpkgs";
+      };
     };
-  };
 
   outputs = { nixpkgs,
               rust-overlay,
               flake-utils,
               ...
-  } : flake-utils.lib.eachDefaultSystem (system : let
-      pkgconf = {
-        overlays = [ (import rust-overlay) ];
+  } :
+  flake-utils.lib.eachDefaultSystem (system : let
+    pkgconf =
+      { overlays = [ (import rust-overlay) ];
         localSystem.system = system;
       };
-      pkgs = import nixpkgs (pkgconf);
-    in {
-      packages.default = pkgs.rustPlatform.buildRustPackage {
-        pname = "rush";
+    pkgs = import nixpkgs (pkgconf);
+  in
+  { packages.default = pkgs.rustPlatform.buildRustPackage
+      { pname = "rush";
         version = "0.1.0";
         src = ./.;
         cargoLock.lockFile = ./Cargo.lock;
@@ -33,9 +33,9 @@
           ];
       };
 
-      devShells.default = pkgs.mkShell {
-        buildInputs = with pkgs;
-          [ rust-bin.stable."1.70.0".default
+    devShells.default = pkgs.mkShell
+      { buildInputs = with pkgs;
+          [ rust-bin.stable."1.70.0".minimal
             pkg-config
             openssl
           ];
@@ -47,5 +47,5 @@
           alias test='cargo test'
           '';
       };
-    });
+  });
 }

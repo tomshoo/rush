@@ -15,7 +15,8 @@ lto = "fat"
 members = [
     "lexer",
     "parser",
-    "char_reader"
+    "char_reader",
+    "core"
 ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -25,3 +26,4 @@ anyhow = { version = "1.0.69", features = ["backtrace"] }
 lexer  = { path = "lexer" }
 parser = { path = "parser" }
 char_reader = { path = "char_reader" }
+core = { path = "core" }
