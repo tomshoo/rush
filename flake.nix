@@ -27,6 +27,8 @@
         src = ./.;
         cargoLock.lockFile = ./Cargo.lock;
 
+        nativeBuildInputs = [ pkgs.rust-bin.stable."1.70.0".minimal ];
+
         buildInputs = with pkgs;
           [ openssl
             pkg-config
@@ -35,7 +37,7 @@
 
     devShells.default = pkgs.mkShell
       { buildInputs = with pkgs;
-          [ rust-bin.stable."1.70.0".minimal
+          [ (rust-bin.stable."1.70.0".minimal.override { extensions = [ "rust-src" "rust-analyzer" "clippy" ]; })
             pkg-config
             openssl
           ];
