@@ -28,18 +28,9 @@ impl Identifier {
     }
 }
 
+#[inline(always)]
 fn is_valid_identifier(string: &str) -> bool {
-    let mut chars = string.chars();
-
-    if chars.next().is_some_and(|s| !s.is_alphabetic()) {
-        return false;
-    };
-
-    for ch in chars {
-        if !ch.is_alphanumeric() {
-            return false;
-        }
-    }
-
-    true
+    string.chars().enumerate().all(|(i, ch)| {
+        ch == '_' || ((i == 0 && ch.is_ascii_alphabetic()) || ch.is_ascii_alphanumeric())
+    })
 }
