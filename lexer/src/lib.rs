@@ -1,8 +1,8 @@
 use std::iter::Peekable;
 
-use core::tracker::Tracker;
 use error::IdError;
 use error::LexerError;
+use rush_core::tracker::Tracker;
 use state::StringState;
 use token::{Literal, Token};
 

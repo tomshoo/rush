@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 lexer = { path = "../lexer" }
 thiserror = "1.0.39"
-core = { path = "../core" }
+rush-core = { path = "../rush-core" }

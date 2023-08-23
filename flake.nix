@@ -37,7 +37,7 @@
 
     devShells.default = pkgs.mkShell
       { buildInputs = with pkgs;
-          [ (rust-bin.stable."1.70.0".minimal.override { extensions = [ "rust-src" "rust-analyzer" "clippy" ]; })
+          [ (rust-bin.stable."1.70.0".minimal.override { extensions = [ "rust-src" "rust-analyzer" "clippy" "rustfmt" ]; })
             pkg-config
             openssl
           ];

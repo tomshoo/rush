@@ -67,10 +67,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "core"
-version = "0.1.0"
-
-[[package]]
 name = "gimli"
 version = "0.27.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -81,8 +77,8 @@ name = "lexer"
 version = "0.1.0"
 dependencies = [
  "bitflags",
- "core",
  "phf",
+ "rush-core",
  "thiserror",
 ]
 
@@ -120,8 +116,8 @@ dependencies = [
 name = "parser"
 version = "0.1.0"
 dependencies = [
- "core",
  "lexer",
+ "rush-core",
  "thiserror",
 ]
 
@@ -206,10 +202,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "char_reader",
- "core",
  "lexer",
  "parser",
+ "rush-core",
 ]
+
+[[package]]
+name = "rush-core"
+version = "0.1.0"
 
 [[package]]
 name = "rustc-demangle"
