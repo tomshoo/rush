@@ -13,6 +13,7 @@ pub enum IdError {
 }
 
 #[derive(Error, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct LexerError(IdError, Tracker);
 
 impl fmt::Display for LexerError {
